@@ -1,8 +1,8 @@
-# 1단계: React+TS 빌드
+# 1단계: React+TS 빌드 (package-lock.json 기준으로 정확히 같은 버전 설치)
 FROM node:20-slim AS build
 WORKDIR /app
-COPY package.json ./
-RUN npm install
+COPY package.json package-lock.json ./
+RUN npm ci
 COPY . .
 RUN npm run build
 
