@@ -25,6 +25,7 @@ function ChatInput({ onSend, disabled }: Props) {
         value={text}
         onChange={(e) => setText(e.target.value)}
         placeholder="불편한 점이나 궁금한 점을 입력하세요"
+        maxLength={1000}
         aria-label="메시지 입력"
         className="min-w-0 flex-1 rounded-full border border-gray-300 bg-white px-4 py-2 text-base outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
       />

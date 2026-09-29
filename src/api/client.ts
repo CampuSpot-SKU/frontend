@@ -9,7 +9,7 @@ export const API_BASE_URL: string =
   import.meta.env.VITE_API_BASE_URL ??
   "https://campuspot-backend-890230516680.asia-northeast3.run.app";
 
-const API_PREFIX = "/api/v1";
+export const API_PREFIX = "/api/v1";
 const SESSION_KEY = "campuspot_session_id";
 
 export class ApiError extends Error {

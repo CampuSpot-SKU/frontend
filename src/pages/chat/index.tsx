@@ -1,7 +1,8 @@
-// 사용자 챗봇 페이지 (작업 1-5, 1단계: 화면 뼈대).
-// 메시지 목록 + 입력창. 실제 응답은 src/api/chat.ts가 담당 (지금은 가짜 응답).
+// 사용자 챗봇 페이지 (작업 1-5).
+// 메시지 목록 + 입력창. backend 호출·응답 해석은 src/api/chat.ts가 담당.
+// 행정문의 답변(SSE)은 받는 대로 말풍선을 채우고, 첫 글자가 오기 전까지만 "입력 중" 표시.
 import { useEffect, useRef, useState } from "react";
-import { sendChatMessage } from "../../api/chat";
+import { chatErrorMessage, sendChatMessage } from "../../api/chat";
 import ChatInput from "../../components/ChatInput";
 import MessageBubble from "../../components/MessageBubble";
 import TypingIndicator from "../../components/TypingIndicator";
@@ -42,16 +43,19 @@ function ChatPage() {
     };
     setMessages((prev) => [...prev, userMsg]);
     setWaiting(true);
-    let reply: string;
+    // 챗봇 답변 말풍선: 스트리밍 중에는 같은 id의 말풍선 내용을 계속 바꿈
+    const replyId = crypto.randomUUID();
+    const showReply = (content: string) =>
+      setMessages((prev) =>
+        prev.some((m) => m.id === replyId)
+          ? prev.map((m) => (m.id === replyId ? { ...m, content } : m))
+          : [...prev, { id: replyId, role: "assistant", content }],
+      );
     try {
-      reply = await sendChatMessage(text);
-    } catch {
-      reply = "죄송해요, 잠시 문제가 생겼어요. 조금 뒤에 다시 시도해 주세요.";
+      showReply(await sendChatMessage(text, showReply));
+    } catch (err) {
+      showReply(chatErrorMessage(err));
     }
-    setMessages((prev) => [
-      ...prev,
-      { id: crypto.randomUUID(), role: "assistant", content: reply },
-    ]);
     setWaiting(false);
   };
 
@@ -85,7 +89,10 @@ function ChatPage() {
               ))}
             </div>
           )}
-          {waiting && <TypingIndicator />}
+          {/* 답변 말풍선이 아직 안 생겼을 때만 (스트리밍이 시작되면 숨김) */}
+          {waiting && messages[messages.length - 1]?.role === "user" && (
+            <TypingIndicator />
+          )}
           <div ref={bottomRef} />
         </div>
       </main>
