@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { sendChatMessage } from "../../api/chat";
 import ChatInput from "../../components/ChatInput";
 import MessageBubble from "../../components/MessageBubble";
+import TypingIndicator from "../../components/TypingIndicator";
 import type { ChatMessage } from "../../types/chat";
 
 const WELCOME: ChatMessage = {
@@ -84,11 +85,7 @@ function ChatPage() {
               ))}
             </div>
           )}
-          {waiting && (
-            <div className="text-sm text-gray-400" aria-live="polite">
-              답변을 준비하고 있어요…
-            </div>
-          )}
+          {waiting && <TypingIndicator />}
           <div ref={bottomRef} />
         </div>
       </main>
