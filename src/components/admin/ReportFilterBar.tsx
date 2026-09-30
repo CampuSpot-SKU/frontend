@@ -39,7 +39,11 @@ export default function ReportFilterBar({ filters, categories, onChange }: Props
   const set = <K extends keyof ReportFilters>(key: K, value: ReportFilters[K]) =>
     onChange({ ...filters, [key]: value });
   const filtered =
-    filters.status || filters.priority || filters.sla_status || filters.category_id;
+    filters.status ||
+    filters.priority ||
+    filters.sla_status ||
+    filters.category_id ||
+    filters.sort !== DEFAULT_FILTERS.sort;
 
   return (
     <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -110,7 +114,7 @@ export default function ReportFilterBar({ filters, categories, onChange }: Props
       {filtered && (
         <button
           type="button"
-          onClick={() => onChange({ ...DEFAULT_FILTERS, sort: filters.sort })}
+          onClick={() => onChange(DEFAULT_FILTERS)}
           className="rounded-lg px-2 py-1.5 text-sm text-blue-600 hover:bg-blue-50"
         >
           필터 초기화
