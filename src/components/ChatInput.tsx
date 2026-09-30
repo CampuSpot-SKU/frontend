@@ -1,13 +1,14 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { PhotoButton, PhotoChip } from "./PhotoAttach";
+import type { PhotoStatus } from "./PhotoAttach";
 
 interface Props {
   onSend: (text: string) => void;
   disabled: boolean;
   // 사진 첨부 (1-10) — 상태는 챗봇 페이지가 갖고 여기는 보여주기만 함
   photoPreviewUrl: string | null;
-  photoUploading: boolean;
+  photoStatus: PhotoStatus;
   photoError: string | null;
   onPhotoSelect: (file: File) => void;
   onPhotoRemove: () => void;
@@ -18,7 +19,7 @@ function ChatInput({
   onSend,
   disabled,
   photoPreviewUrl,
-  photoUploading,
+  photoStatus,
   photoError,
   onPhotoSelect,
   onPhotoRemove,
@@ -37,8 +38,8 @@ function ChatInput({
     <div>
       <PhotoChip
         previewUrl={photoPreviewUrl}
-        uploading={photoUploading}
-        disabled={photoUploading}
+        status={photoStatus}
+        disabled={photoStatus !== "idle"}
         onRemove={onPhotoRemove}
       />
       {photoError && (
@@ -47,7 +48,10 @@ function ChatInput({
         </p>
       )}
       <form onSubmit={handleSubmit} className="flex gap-2">
-        <PhotoButton onSelect={onPhotoSelect} disabled={photoUploading} />
+        <PhotoButton
+          onSelect={onPhotoSelect}
+          disabled={photoStatus !== "idle"}
+        />
         <input
           type="text"
           value={text}

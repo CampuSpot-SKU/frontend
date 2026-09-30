@@ -8,7 +8,11 @@ interface ButtonProps {
   disabled: boolean;
 }
 
-/** 📎 버튼 + 숨은 파일 입력. 휴대폰에서는 카메라·앨범 선택이 그대로 열린다(capture 속성 없음). */
+/**
+ * 📎 버튼 + 숨은 파일 입력. 휴대폰에서는 카메라·앨범 선택이 그대로 열린다(capture 속성 없음).
+ * accept를 image/*로 둔 이유: jpeg/png로 좁히면 아이폰의 HEIC 사진을 앨범에서 고를 수 없는 경우가 있다.
+ * 어떤 형식이든 올리기 전에 JPEG로 바꾼다(lib/resizeImage.ts).
+ */
 export function PhotoButton({ onSelect, disabled }: ButtonProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -24,7 +28,7 @@ export function PhotoButton({ onSelect, disabled }: ButtonProps) {
       <input
         ref={inputRef}
         type="file"
-        accept="image/jpeg,image/png"
+        accept="image/*"
         hidden
         onChange={handleChange}
       />
@@ -33,7 +37,7 @@ export function PhotoButton({ onSelect, disabled }: ButtonProps) {
         onClick={() => inputRef.current?.click()}
         disabled={disabled}
         aria-label="사진 첨부"
-        title="사진 첨부 (jpg·png, 5MB 이하)"
+        title="사진 첨부"
         className="shrink-0 rounded-full border border-gray-300 bg-white px-3 py-2 text-base hover:bg-gray-100 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-60"
       >
         📎
@@ -42,9 +46,12 @@ export function PhotoButton({ onSelect, disabled }: ButtonProps) {
   );
 }
 
+/** preparing = 사진을 줄이는 중, uploading = 서버에 올리는 중 */
+export type PhotoStatus = "idle" | "preparing" | "uploading";
+
 interface ChipProps {
   previewUrl: string | null;
-  uploading: boolean;
+  status: PhotoStatus;
   disabled: boolean;
   onRemove: () => void;
 }
@@ -52,14 +59,14 @@ interface ChipProps {
 /** 올려 둔 사진 칩. 사진이 없고 올리는 중도 아니면 아무것도 그리지 않는다. */
 export function PhotoChip({
   previewUrl,
-  uploading,
+  status,
   disabled,
   onRemove,
 }: ChipProps) {
-  if (uploading) {
+  if (status !== "idle") {
     return (
       <p className="mb-2 px-1 text-sm text-gray-500" role="status">
-        사진 올리는 중…
+        {status === "preparing" ? "사진 준비 중…" : "사진 올리는 중…"}
       </p>
     );
   }

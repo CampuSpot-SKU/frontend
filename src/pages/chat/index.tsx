@@ -13,10 +13,13 @@ import {
   deletePhoto,
   photoErrorMessage,
   uploadPhoto,
-  validatePhotoFile,
+  validatePhotoSize,
+  validatePhotoType,
 } from "../../api/photo";
+import { resizeImage } from "../../lib/resizeImage";
 import { rememberMyReport } from "../../api/reports";
 import ChatInput from "../../components/ChatInput";
+import type { PhotoStatus } from "../../components/PhotoAttach";
 import MessageBubble from "../../components/MessageBubble";
 import TypingIndicator from "../../components/TypingIndicator";
 import ReportStatusDialog from "../../components/report/ReportStatusDialog";
@@ -55,7 +58,7 @@ function ChatPage() {
   // 사진 첨부 (1-10): 서버의 대기 사진(세션당 1장)과 화면의 칩이 같은 상태여야 한다.
   // 접수가 끝나면 칩을 지우고, [취소]·안내만 받기 뒤에는 서버 대기 사진이 남으므로 칩도 남긴다.
   const [photoUrl, setPhotoUrl] = useState<string | null>(null); // 미리보기(object URL)
-  const [photoUploading, setPhotoUploading] = useState(false);
+  const [photoStatus, setPhotoStatus] = useState<PhotoStatus>("idle");
   const [photoError, setPhotoError] = useState<string | null>(null);
   const photoUrlRef = useRef<string | null>(null); // 정리(revoke)용 최신 값
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -82,33 +85,42 @@ function ChatPage() {
 
   const handlePhotoSelect = async (file: File) => {
     setPhotoError(null);
-    // 서버가 최종 검사하지만, 화면에서 먼저 막아서 큰 파일을 올리지 않게 함
-    const invalid = validatePhotoFile(file);
+    // 서버가 최종 검사하지만, 화면에서 먼저 막아서 사진이 아닌 파일을 올리지 않게 함
+    const invalid = validatePhotoType(file);
     if (invalid) {
       setPhotoError(invalid);
       return;
     }
-    setPhotoUploading(true);
     try {
-      await uploadPhoto(file);
-      replacePhotoPreview(URL.createObjectURL(file));
+      // 휴대폰 사진(3~8MB, 아이폰은 HEIC)은 그대로 올리면 서버 규칙에 막히므로 먼저 줄여 JPEG로 바꿈
+      setPhotoStatus("preparing");
+      const prepared = await resizeImage(file);
+      const tooBig = validatePhotoSize(prepared); // 줄인 뒤에도 5MB를 넘는 경우는 거의 없음
+      if (tooBig) {
+        setPhotoError(tooBig);
+        setPhotoStatus("idle");
+        return;
+      }
+      setPhotoStatus("uploading");
+      await uploadPhoto(prepared);
+      replacePhotoPreview(URL.createObjectURL(prepared));
     } catch (err) {
       // 실패하면 칩은 그대로(교체 실패 시 이전 사진이 서버에 남아 있음) + 안내 한 줄. 채팅은 계속 가능
       setPhotoError(photoErrorMessage(err));
     }
-    setPhotoUploading(false);
+    setPhotoStatus("idle");
   };
 
   const handlePhotoRemove = async () => {
     setPhotoError(null);
-    setPhotoUploading(true);
+    setPhotoStatus("uploading");
     try {
       await deletePhoto();
       replacePhotoPreview(null);
     } catch (err) {
       setPhotoError(photoErrorMessage(err)); // 서버에 사진이 남았으니 칩도 그대로 둠
     }
-    setPhotoUploading(false);
+    setPhotoStatus("idle");
   };
 
   const handleSend = async (text: string) => {
@@ -220,7 +232,7 @@ function ChatPage() {
             onSend={(t) => handleSend(t)}
             disabled={waiting}
             photoPreviewUrl={photoUrl}
-            photoUploading={photoUploading}
+            photoStatus={photoStatus}
             photoError={photoError}
             onPhotoSelect={(f) => void handlePhotoSelect(f)}
             onPhotoRemove={() => void handlePhotoRemove()}

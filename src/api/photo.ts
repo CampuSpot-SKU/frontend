@@ -9,22 +9,31 @@
 //
 // 주의: apiFetch()는 모든 요청에 Content-Type: application/json을 붙여서 파일 업로드에 쓸 수 없다.
 // FormData를 fetch로 직접 보내고 Content-Type은 지정하지 않는다 (브라우저가 경계값이 든 헤더를 자동으로 붙임).
+import { PhotoDecodeError } from "../lib/resizeImage";
 import { createSession } from "./chat";
 import { API_BASE_URL, API_PREFIX, ApiError, getSessionId } from "./client";
 
 /** 서버와 같은 제한 (backend MAX_BYTES). 화면에서 미리 검사하고 서버가 최종 검사한다. */
 export const PHOTO_MAX_BYTES = 5 * 1024 * 1024;
 
-const ALLOWED_TYPES = ["image/jpeg", "image/png"];
-
 export const PHOTO_TOO_BIG_MESSAGE = "사진은 5MB 이하만 올릴 수 있어요.";
 export const PHOTO_BAD_TYPE_MESSAGE = "jpg 또는 png 사진만 올릴 수 있어요.";
 
-/** 업로드 전에 화면에서 하는 검사 — 통과면 null, 아니면 사용자에게 보여줄 문구 (서버 문구와 같음) */
-export function validatePhotoFile(file: File): string | null {
-  if (!ALLOWED_TYPES.includes(file.type)) return PHOTO_BAD_TYPE_MESSAGE;
-  if (file.size > PHOTO_MAX_BYTES) return PHOTO_TOO_BIG_MESSAGE;
+/**
+ * 고른 파일이 사진인지 화면에서 먼저 검사 — 통과면 null, 아니면 사용자에게 보여줄 문구.
+ * 서버 규칙은 jpg/png뿐이지만, 휴대폰 사진(HEIC·WebP 등)은 올리기 전에 자동으로 JPEG로 바꾸므로(lib/resizeImage.ts)
+ * 여기서는 이미지가 아니거나 gif인 것만 막는다.
+ */
+export function validatePhotoType(file: File): string | null {
+  if (!file.type.startsWith("image/") || file.type === "image/gif") {
+    return PHOTO_BAD_TYPE_MESSAGE;
+  }
   return null;
+}
+
+/** 줄인 뒤에도 5MB를 넘는지 검사 (거의 없음) — 통과면 null */
+export function validatePhotoSize(file: File): string | null {
+  return file.size > PHOTO_MAX_BYTES ? PHOTO_TOO_BIG_MESSAGE : null;
 }
 
 /** 대기 사진으로 올린다. 이미 올린 사진이 있으면 서버에서 교체된다. 실패하면 ApiError(또는 네트워크 오류)를 던진다. */
@@ -57,6 +66,7 @@ export async function deletePhoto(): Promise<void> {
 
 /** 실패 원인별로 사용자에게 보여줄 문구 (413·415·503·404는 서버 문구와 같음) */
 export function photoErrorMessage(err: unknown): string {
+  if (err instanceof PhotoDecodeError) return err.message;
   if (err instanceof ApiError) {
     if (err.status === 413) return PHOTO_TOO_BIG_MESSAGE;
     if (err.status === 415) return PHOTO_BAD_TYPE_MESSAGE;
