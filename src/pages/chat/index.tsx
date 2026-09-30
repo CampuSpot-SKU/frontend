@@ -12,7 +12,8 @@ import { chatErrorMessage, sendChatMessage } from "../../api/chat";
 import ChatInput from "../../components/ChatInput";
 import MessageBubble from "../../components/MessageBubble";
 import TypingIndicator from "../../components/TypingIndicator";
-import type { ChatMessage } from "../../types/chat";
+import SlotsCorner from "../../components/report/SlotsCorner";
+import type { ChatMessage, SlotsFilled } from "../../types/chat";
 
 const WELCOME: ChatMessage = {
   id: "welcome",
@@ -39,6 +40,8 @@ function ChatPage() {
   const [waiting, setWaiting] = useState(false);
   // backend가 마지막 답변과 함께 준 추천 답변 (다음 메시지를 보내면 사라짐)
   const [choices, setChoices] = useState<string[]>([]);
+  // 챗봇이 지금까지 알아낸 신고 내용 — 구석의 [접수 내용 보기]용 (신고 중이 아니면 null)
+  const [slots, setSlots] = useState<SlotsFilled | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   // 새 메시지가 생기면 맨 아래로 스크롤
@@ -67,6 +70,7 @@ function ChatPage() {
       const result = await sendChatMessage(text, { onDelta: showReply });
       showReply(result.text);
       setChoices(result.choices ?? []);
+      setSlots(result.slots ?? null);
     } catch (err) {
       // 실패하면 오류 문구만 표시 (같은 말을 다시 보내면 됨)
       showReply(chatErrorMessage(err));
@@ -125,6 +129,8 @@ function ChatPage() {
           <div ref={bottomRef} />
         </div>
       </main>
+
+      <SlotsCorner slots={slots} />
 
       <footer className="shrink-0 border-t border-gray-200 bg-white">
         <div className="mx-auto max-w-2xl px-4 py-3">

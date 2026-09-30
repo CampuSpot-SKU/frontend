@@ -126,6 +126,8 @@ export interface ChatResult {
   draft?: ReportDraft;
   /** 추천 답변 칩 (없으면 undefined) */
   choices?: string[];
+  /** 지금까지 챗봇이 대화에서 알아낸 신고 내용 (신고 진행 중 응답일 때만) — 구석의 "접수 내용" 보기용 */
+  slots?: SlotsFilled;
 }
 
 // ── GET /locations 응답 (명세 5-1, 접수 폼 위치 선택 목록 — 건물 → 층 → 세부장소) ──

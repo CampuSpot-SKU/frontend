@@ -119,10 +119,11 @@ function interpretJsonReply(reply: ChatJsonReply): ChatResult {
   // 대화형 흐름: 접수 제안·되묻기·확인 모두 그냥 챗봇의 말 + (있으면) 추천 답변 칩.
   // 위치·상황을 따로 보여주는 폼은 없음 — 알아낸 내용은 챗봇이 문장으로 확인해 줌
   const choices = reply.choices ?? undefined;
+  const slots = reply.slots_filled;
   if ("confirm_required" in reply) {
-    return { text: reply.summary, phase: "none", choices };
+    return { text: reply.summary, phase: "none", choices, slots };
   }
-  return { text: reply.follow_up_question, phase: "none", choices };
+  return { text: reply.follow_up_question, phase: "none", choices, slots };
 }
 
 function reportCreatedText(
