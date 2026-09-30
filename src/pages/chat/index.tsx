@@ -9,6 +9,12 @@
 //   칩에 없는 답은 입력창에 자유롭게 쓰면 된다.
 import { useEffect, useRef, useState } from "react";
 import { chatErrorMessage, sendChatMessage } from "../../api/chat";
+import {
+  deletePhoto,
+  photoErrorMessage,
+  uploadPhoto,
+  validatePhotoFile,
+} from "../../api/photo";
 import { rememberMyReport } from "../../api/reports";
 import ChatInput from "../../components/ChatInput";
 import MessageBubble from "../../components/MessageBubble";
@@ -46,12 +52,64 @@ function ChatPage() {
   const [slots, setSlots] = useState<SlotsFilled | null>(null);
   // 본인 신고 조회 창 (1-12)
   const [statusOpen, setStatusOpen] = useState(false);
+  // 사진 첨부 (1-10): 서버의 대기 사진(세션당 1장)과 화면의 칩이 같은 상태여야 한다.
+  // 접수가 끝나면 칩을 지우고, [취소]·안내만 받기 뒤에는 서버 대기 사진이 남으므로 칩도 남긴다.
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null); // 미리보기(object URL)
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const photoUrlRef = useRef<string | null>(null); // 정리(revoke)용 최신 값
   const bottomRef = useRef<HTMLDivElement>(null);
 
   // 새 메시지가 생기면 맨 아래로 스크롤
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, waiting, choices]);
+
+  // 페이지를 닫을 때 미리보기 주소 정리 (메모리)
+  useEffect(
+    () => () => {
+      if (photoUrlRef.current) URL.revokeObjectURL(photoUrlRef.current);
+    },
+    [],
+  );
+
+  /** 미리보기를 바꾸거나 지운다 (이전 주소는 정리) */
+  const replacePhotoPreview = (next: string | null) => {
+    if (photoUrlRef.current) URL.revokeObjectURL(photoUrlRef.current);
+    photoUrlRef.current = next;
+    setPhotoUrl(next);
+  };
+
+  const handlePhotoSelect = async (file: File) => {
+    setPhotoError(null);
+    // 서버가 최종 검사하지만, 화면에서 먼저 막아서 큰 파일을 올리지 않게 함
+    const invalid = validatePhotoFile(file);
+    if (invalid) {
+      setPhotoError(invalid);
+      return;
+    }
+    setPhotoUploading(true);
+    try {
+      await uploadPhoto(file);
+      replacePhotoPreview(URL.createObjectURL(file));
+    } catch (err) {
+      // 실패하면 칩은 그대로(교체 실패 시 이전 사진이 서버에 남아 있음) + 안내 한 줄. 채팅은 계속 가능
+      setPhotoError(photoErrorMessage(err));
+    }
+    setPhotoUploading(false);
+  };
+
+  const handlePhotoRemove = async () => {
+    setPhotoError(null);
+    setPhotoUploading(true);
+    try {
+      await deletePhoto();
+      replacePhotoPreview(null);
+    } catch (err) {
+      setPhotoError(photoErrorMessage(err)); // 서버에 사진이 남았으니 칩도 그대로 둠
+    }
+    setPhotoUploading(false);
+  };
 
   const handleSend = async (text: string) => {
     const userMsg: ChatMessage = {
@@ -76,7 +134,12 @@ function ChatPage() {
       setChoices(result.choices ?? []);
       setSlots(result.slots ?? null);
       // 접수가 완료되면 조회 창의 "이 브라우저에서 접수한 신고" 목록에 추가 (1-12)
-      if (result.reportNo !== undefined) rememberMyReport(result.reportNo);
+      if (result.reportNo !== undefined) {
+        rememberMyReport(result.reportNo);
+        // 대기 사진은 backend가 이 신고에 붙였으니 칩만 지움 (서버 호출 없음)
+        replacePhotoPreview(null);
+        setPhotoError(null);
+      }
     } catch (err) {
       // 실패하면 오류 문구만 표시 (같은 말을 다시 보내면 됨)
       showReply(chatErrorMessage(err));
@@ -153,7 +216,15 @@ function ChatPage() {
 
       <footer className="shrink-0 border-t border-gray-200 bg-white">
         <div className="mx-auto max-w-2xl px-4 py-3">
-          <ChatInput onSend={(t) => handleSend(t)} disabled={waiting} />
+          <ChatInput
+            onSend={(t) => handleSend(t)}
+            disabled={waiting}
+            photoPreviewUrl={photoUrl}
+            photoUploading={photoUploading}
+            photoError={photoError}
+            onPhotoSelect={(f) => void handlePhotoSelect(f)}
+            onPhotoRemove={() => void handlePhotoRemove()}
+          />
         </div>
       </footer>
     </div>

@@ -41,6 +41,34 @@ interface Props {
   onUnauthorized: () => void;
 }
 
+/** 접수 때 붙은 사진 — 10분짜리 임시 링크라서 만료되면 불러오기에 실패할 수 있다 (1-10) */
+function AttachedPhoto({ url }: { url: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) {
+    return (
+      <p className="mt-2 text-sm text-gray-500">
+        사진을 불러오지 못했어요. 링크가 만료됐을 수 있으니 상세를 다시 열어 주세요.
+      </p>
+    );
+  }
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="mt-2 inline-block"
+    >
+      <img
+        src={url}
+        alt="첨부 사진"
+        loading="lazy"
+        onError={() => setFailed(true)}
+        className="max-h-48 rounded-lg border border-gray-200 object-contain"
+      />
+    </a>
+  );
+}
+
 export default function ReportDetailPanel({
   token,
   reportId,
@@ -171,16 +199,7 @@ export default function ReportDetailPanel({
               <p className="whitespace-pre-wrap rounded-lg bg-gray-50 p-3 text-gray-700">
                 {detail.description}
               </p>
-              {detail.photo_url && (
-                <a
-                  href={detail.photo_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-2 inline-block text-blue-600 underline"
-                >
-                  첨부 사진 보기
-                </a>
-              )}
+              {detail.photo_url && <AttachedPhoto url={detail.photo_url} />}
             </section>
 
             <section>

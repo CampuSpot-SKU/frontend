@@ -1,13 +1,28 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
+import { PhotoButton, PhotoChip } from "./PhotoAttach";
 
 interface Props {
   onSend: (text: string) => void;
   disabled: boolean;
+  // 사진 첨부 (1-10) — 상태는 챗봇 페이지가 갖고 여기는 보여주기만 함
+  photoPreviewUrl: string | null;
+  photoUploading: boolean;
+  photoError: string | null;
+  onPhotoSelect: (file: File) => void;
+  onPhotoRemove: () => void;
 }
 
-/** 하단 입력창 + 전송 버튼. Enter로도 전송됨. */
-function ChatInput({ onSend, disabled }: Props) {
+/** 하단 입력창 + 📎 사진 첨부 + 전송 버튼. Enter로도 전송됨. */
+function ChatInput({
+  onSend,
+  disabled,
+  photoPreviewUrl,
+  photoUploading,
+  photoError,
+  onPhotoSelect,
+  onPhotoRemove,
+}: Props) {
   const [text, setText] = useState("");
 
   const handleSubmit = (e: FormEvent) => {
@@ -20,7 +35,19 @@ function ChatInput({ onSend, disabled }: Props) {
 
   return (
     <div>
+      <PhotoChip
+        previewUrl={photoPreviewUrl}
+        uploading={photoUploading}
+        disabled={photoUploading}
+        onRemove={onPhotoRemove}
+      />
+      {photoError && (
+        <p className="mb-2 px-1 text-sm text-red-600" role="alert">
+          {photoError}
+        </p>
+      )}
       <form onSubmit={handleSubmit} className="flex gap-2">
+        <PhotoButton onSelect={onPhotoSelect} disabled={photoUploading} />
         <input
           type="text"
           value={text}
@@ -39,7 +66,8 @@ function ChatInput({ onSend, disabled }: Props) {
         </button>
       </form>
       <p className="mt-1.5 px-1 text-xs text-gray-500">
-        이름·학번·연락처 등 개인정보는 입력하지 마세요.
+        이름·학번·연락처 등 개인정보는 입력하지 마세요. 사진에는 사람
+        얼굴·이름표·학생증이 나오지 않게 해 주세요.
       </p>
     </div>
   );

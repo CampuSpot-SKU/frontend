@@ -77,7 +77,7 @@ export function chatErrorMessage(err: unknown): string {
   return "죄송해요, 잠시 문제가 생겼어요. 조금 뒤에 다시 시도해 주세요.";
 }
 
-async function createSession(): Promise<string> {
+export async function createSession(): Promise<string> {
   const { session_id } = await apiFetch<SessionCreated>("/chat/sessions", {
     method: "POST",
   });
