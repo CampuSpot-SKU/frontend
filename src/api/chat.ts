@@ -2,11 +2,17 @@
 //
 // 흐름 (명세서 5-1 "사용자용 — 챗봇"):
 //   1) 브라우저에 session_id가 없으면 POST /chat/sessions로 만들고 localStorage에 저장
-//   2) POST /chat/sessions/{session_id}/messages {content}
-//   3) 응답 종류에 따라 화면에 보여줄 문구로 바꿈
-//      - JSON: 신고 되묻기(follow_up_question) / 신고 접수 완료(report_created) / 애매함(clarifying_question)
+//   2) POST /chat/sessions/{session_id}/messages {content, action?, draft?}
+//      - action: 버튼([안내만 받을래요]/[접수]/[취소])을 눌렀을 때만. [접수]는 draft(최종 폼 값)도 같이
+//   3) 응답 종류에 따라 화면에 보여줄 문구 + 신고 흐름 단계(phase)로 바꿈
+//      - JSON: 신고 되묻기 / 요약 확인(confirm_required) / 취소(report_cancelled) /
+//              접수 완료(report_created) / 애매함(clarifying_question)
 //      - SSE(text/event-stream): 행정문의 답변. 이벤트마다 {delta}, 마지막에 {done, sources}
 //   세션이 없다고(404) 하면 새 세션을 만들어 한 번만 다시 보낸다 (DB 초기화 등으로 세션이 사라진 경우).
+//
+// 신고 흐름 개편(명세 4-1, 작업 1-5b)의 접수 폼·버튼은 backend가 1-3c 형식으로 응답할 때만 켜진다.
+// 판단 기준: slots_filled에 building 필드가 있으면 1-3c backend. 그 전 backend에서는 phase가
+// 항상 "none"이라 화면이 1-5 때와 똑같이 동작한다.
 import {
   API_BASE_URL,
   API_PREFIX,
@@ -16,36 +22,49 @@ import {
   saveSessionId,
 } from "./client";
 import type {
+  ChatAction,
   ChatJsonReply,
+  ChatResult,
   InquirySource,
+  MessageIn,
+  ReportDraft,
   SessionCreated,
+  SlotsFilled,
 } from "../types/chat";
 
 /** 스트리밍 중 지금까지 받은 답변 전체를 넘겨주는 콜백 (말풍선을 실시간으로 채우는 용도) */
 export type OnDelta = (textSoFar: string) => void;
 
+export interface SendOptions {
+  onDelta?: OnDelta;
+  action?: ChatAction;
+  draft?: ReportDraft;
+}
+
 /**
- * 사용자 메시지를 보내고 챗봇의 최종 답변 문구를 돌려준다.
+ * 사용자 메시지를 보내고 챗봇의 최종 답변 문구 + 신고 흐름 단계를 돌려준다.
  * 행정문의(SSE)일 때는 받는 도중에도 onDelta로 지금까지의 답변을 알려준다.
  * 실패하면 ApiError(또는 네트워크 오류)를 던진다 → 화면은 chatErrorMessage()로 문구를 만든다.
  */
 export async function sendChatMessage(
   content: string,
-  onDelta?: OnDelta,
-): Promise<string> {
+  { onDelta, action, draft }: SendOptions = {},
+): Promise<ChatResult> {
+  const body: MessageIn = { content, action, draft };
   let sessionId = getSessionId() ?? (await createSession());
-  let res = await postMessage(sessionId, content);
+  let res = await postMessage(sessionId, body);
   if (res.status === 404) {
     sessionId = await createSession();
-    res = await postMessage(sessionId, content);
+    res = await postMessage(sessionId, body);
   }
   if (!res.ok) {
     throw new ApiError(res.status, await readBody(res));
   }
   if (res.headers.get("content-type")?.includes("text/event-stream")) {
-    return readInquiryStream(res, onDelta);
+    // 행정문의 답변 = 신고 흐름이 아님 ([안내만 받을래요]를 누른 뒤의 답변도 여기로 옴)
+    return { text: await readInquiryStream(res, onDelta), phase: "none" };
   }
-  return jsonReplyToText((await res.json()) as ChatJsonReply);
+  return interpretJsonReply((await res.json()) as ChatJsonReply);
 }
 
 /** 실패 원인별로 사용자에게 보여줄 문구 */
@@ -70,13 +89,14 @@ async function createSession(): Promise<string> {
 }
 
 // SSE 응답을 읽어야 해서 apiFetch(JSON 전용) 대신 fetch를 직접 사용
-function postMessage(sessionId: string, content: string): Promise<Response> {
+function postMessage(sessionId: string, body: MessageIn): Promise<Response> {
   return fetch(
     `${API_BASE_URL}${API_PREFIX}/chat/sessions/${sessionId}/messages`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content }),
+      // action·draft가 undefined면 JSON.stringify가 빼고 보냄 → 기존 요청 {content}와 같음
+      body: JSON.stringify(body),
     },
   );
 }
@@ -89,18 +109,53 @@ async function readBody(res: Response): Promise<unknown> {
   }
 }
 
-function jsonReplyToText(reply: ChatJsonReply): string {
-  if (reply.intent === "unclear") return reply.clarifying_question;
-  if ("report_created" in reply) {
-    const r = reply.report;
-    // TODO(1-3b): 명세 4-1 "AI 판정 결과와 이유 한 줄"은 backend 응답에 이유가 추가되면 여기에 표시
-    return (
-      `신고가 접수됐어요! 접수번호는 ${r.display_no}번이에요.\n` +
-      `· 분류: ${r.category.name} · 우선순위 ${r.priority}\n` +
-      "담당 부서에서 확인 후 처리할게요."
-    );
+/** 1-3c backend인지: slots_filled에 building 필드(값이 null이어도)가 있으면 새 형식 */
+function isNewReportFormat(slots: SlotsFilled): boolean {
+  return "building" in slots;
+}
+
+/** 대화로 알아낸 값 → 폼 값 (null은 빈칸) */
+function slotsToDraft(slots: SlotsFilled): ReportDraft {
+  return {
+    building: slots.building ?? "",
+    floor: slots.floor ?? "",
+    detail: slots.detail ?? "",
+    description: slots.description ?? "",
+  };
+}
+
+function interpretJsonReply(reply: ChatJsonReply): ChatResult {
+  if (reply.intent === "unclear") {
+    return { text: reply.clarifying_question, phase: "none" };
   }
-  return reply.follow_up_question;
+  if ("report_created" in reply) {
+    return { text: reportCreatedText(reply), phase: "ended" };
+  }
+  if ("report_cancelled" in reply) {
+    return { text: reply.message, phase: "ended" };
+  }
+  if (!isNewReportFormat(reply.slots_filled)) {
+    // 1-3c 전 backend: 폼·버튼 없이 문구만 (1-5 때와 같음)
+    return { text: reply.follow_up_question, phase: "none" };
+  }
+  const draft = slotsToDraft(reply.slots_filled);
+  if ("confirm_required" in reply) {
+    return { text: reply.summary, phase: "confirming", draft };
+  }
+  return { text: reply.follow_up_question, phase: "collecting", draft };
+}
+
+function reportCreatedText(
+  reply: Extract<ChatJsonReply, { report_created: true }>,
+): string {
+  // backend가 완성 문구(message)를 주면 그대로 — 접수번호·위치·AI 판정 이유가 들어 있음 (1-3c)
+  if (reply.message) return reply.message;
+  const r = reply.report;
+  return (
+    `신고가 접수됐어요! 접수번호는 ${r.display_no}번이에요.\n` +
+    `· 분류: ${r.category.name} · 우선순위 ${r.priority}\n` +
+    "담당 부서에서 확인 후 처리할게요."
+  );
 }
 
 /** 행정문의 SSE 스트림을 끝까지 읽어서 최종 답변(+근거)을 돌려준다. */
