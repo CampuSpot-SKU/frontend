@@ -1,41 +1,52 @@
-// 관리자 대시보드 페이지 (작업 1-6 화면, 1단계: 뼈대).
-// 로그인 전 → 로그인 폼 / 로그인 후 → 접수 목록 표.
-// 다음 단계(TODO): 필터·정렬, SLA 임박·초과 강조, 상세보기, 상태 변경.
-import { useEffect, useState } from "react";
-import { clearAdminToken, fetchReports, getAdminToken } from "../../api/admin";
+// 관리자 대시보드 페이지 (작업 1-6 화면, 2단계: 필터·정렬·SLA 강조·상세보기·상태 변경).
+// 로그인 전 → 로그인 폼 / 로그인 후 → 필터 막대 + 접수 목록 표 + (행 선택 시) 상세 패널.
+import { useCallback, useEffect, useState } from "react";
+import { clearAdminToken, fetchReports, getAdminToken, REPORT_LIMIT } from "../../api/admin";
 import { ApiError } from "../../api/client";
 import LoginForm from "../../components/admin/LoginForm";
-import type { AdminReportItem } from "../../types/admin";
-
-/** 건물 이름이 있으면 "건물 층 세부", 없으면 사용자가 입력한 원문 위치 */
-function locationText(r: AdminReportItem): string {
-  if (r.building) {
-    return [r.building.name, r.floor, r.detail].filter(Boolean).join(" ");
-  }
-  return r.location_raw ?? "-";
-}
+import ReportDetailPanel from "../../components/admin/ReportDetailPanel";
+import ReportFilterBar, { DEFAULT_FILTERS } from "../../components/admin/ReportFilterBar";
+import ReportTable from "../../components/admin/ReportTable";
+import type {
+  AdminReportItem,
+  NamedRef,
+  ReportFilters,
+} from "../../types/admin";
 
 function AdminPage() {
   const [token, setToken] = useState<string | null>(getAdminToken);
+  const [filters, setFilters] = useState<ReportFilters>(DEFAULT_FILTERS);
   const [reports, setReports] = useState<AdminReportItem[] | null>(null);
   const [total, setTotal] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // 카테고리 필터 선택지 — 카테고리 목록 API가 아직 없어서(3순위 1-17) 지금까지 본 목록에서 모음
+  const [categories, setCategories] = useState<NamedRef[]>([]);
+  const [reloadKey, setReloadKey] = useState(0);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     clearAdminToken();
     setToken(null);
     setReports(null);
-  };
+    setSelectedId(null);
+    setCategories([]);
+    setFilters(DEFAULT_FILTERS);
+  }, []);
 
   useEffect(() => {
     if (!token) return;
     let cancelled = false;
     setError(null);
-    fetchReports(token)
+    fetchReports(token, filters)
       .then((res) => {
         if (cancelled) return;
         setReports(res.items);
         setTotal(res.total);
+        setCategories((prev) => {
+          const seen = new Map(prev.map((c) => [c.id, c]));
+          res.items.forEach((r) => seen.set(r.category.id, r.category));
+          return [...seen.values()].sort((a, b) => a.name.localeCompare(b.name, "ko"));
+        });
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -48,7 +59,7 @@ function AdminPage() {
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [token, filters, reloadKey, logout]);
 
   if (!token) {
     return (
@@ -61,74 +72,66 @@ function AdminPage() {
   return (
     <div className="min-h-dvh bg-gray-50">
       <header className="border-b border-gray-200 bg-white">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
           <div>
             <h1 className="text-lg font-bold text-gray-900">
               CampuSpot 관리자
             </h1>
             <p className="text-xs text-gray-500">접수 목록</p>
           </div>
-          <button
-            type="button"
-            onClick={logout}
-            className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100"
-          >
-            로그아웃
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setReloadKey((k) => k + 1)}
+              className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100"
+            >
+              새로고침
+            </button>
+            <button
+              type="button"
+              onClick={logout}
+              className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100"
+            >
+              로그아웃
+            </button>
+          </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl px-4 py-4">
+      <main className="mx-auto max-w-6xl px-4 py-4">
+        <ReportFilterBar
+          filters={filters}
+          categories={categories}
+          onChange={setFilters}
+        />
         {error && <p className="text-sm text-red-600">{error}</p>}
         {!error && reports === null && (
           <p className="text-sm text-gray-400">불러오는 중…</p>
         )}
         {reports !== null && (
           <>
-            <p className="mb-2 text-sm text-gray-600">전체 {total}건</p>
-            <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-gray-50 text-gray-500">
-                  <tr>
-                    <th className="px-3 py-2">번호</th>
-                    <th className="px-3 py-2">카테고리</th>
-                    <th className="px-3 py-2">우선순위</th>
-                    <th className="px-3 py-2">상태</th>
-                    <th className="px-3 py-2">위치</th>
-                    <th className="px-3 py-2">SLA</th>
-                    <th className="px-3 py-2">접수일시</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {reports.length === 0 && (
-                    <tr>
-                      <td
-                        colSpan={7}
-                        className="px-3 py-6 text-center text-gray-400"
-                      >
-                        접수된 신고가 없어요
-                      </td>
-                    </tr>
-                  )}
-                  {reports.map((r) => (
-                    <tr key={r.id} className="border-t border-gray-100">
-                      <td className="px-3 py-2">{r.display_no}</td>
-                      <td className="px-3 py-2">{r.category.name}</td>
-                      <td className="px-3 py-2">{r.priority}</td>
-                      <td className="px-3 py-2">{r.status}</td>
-                      <td className="px-3 py-2">{locationText(r)}</td>
-                      <td className="px-3 py-2">{r.sla_status ?? "-"}</td>
-                      <td className="px-3 py-2">
-                        {new Date(r.created_at).toLocaleString("ko-KR")}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <p className="mb-2 text-sm text-gray-600">
+              전체 {total}건
+              {total > REPORT_LIMIT && ` (최근 ${REPORT_LIMIT}건만 표시 — 필터로 좁혀 보세요)`}
+            </p>
+            <ReportTable
+              reports={reports}
+              selectedId={selectedId}
+              onSelect={setSelectedId}
+            />
           </>
         )}
       </main>
+
+      {selectedId && (
+        <ReportDetailPanel
+          token={token}
+          reportId={selectedId}
+          onClose={() => setSelectedId(null)}
+          onChanged={() => setReloadKey((k) => k + 1)}
+          onUnauthorized={logout}
+        />
+      )}
     </div>
   );
 }

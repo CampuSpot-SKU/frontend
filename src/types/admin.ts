@@ -36,3 +36,34 @@ export interface AdminReportList {
   items: AdminReportItem[];
   total: number;
 }
+
+export type SortKey = "-created_at" | "created_at" | "sla_deadline" | "priority";
+
+/** 목록 필터·정렬 — 빈 문자열은 "전체" */
+export interface ReportFilters {
+  status: ReportStatus | "";
+  priority: Priority | "";
+  sla_status: SlaStatus | "";
+  category_id: string;
+  sort: SortKey;
+}
+
+/** 상태 이력 한 줄 (GET /admin/reports/{id}의 status_history) */
+export interface StatusHistoryItem {
+  from_status: ReportStatus | null; // 최초 접수는 null
+  to_status: ReportStatus;
+  memo: string | null;
+  changed_by: NamedRef | null; // null = 시스템(챗봇 접수 등)
+  changed_at: string;
+}
+
+/** GET /admin/reports/{id} 상세 — 목록 필드 + 전체 필드 + 상태 이력 */
+export interface AdminReportDetail extends AdminReportItem {
+  category_id: string;
+  building_id: string | null;
+  description: string;
+  photo_url: string | null;
+  assigned_dept: string | null;
+  updated_at: string;
+  status_history: StatusHistoryItem[];
+}
