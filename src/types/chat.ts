@@ -128,6 +128,8 @@ export interface ChatResult {
   choices?: string[];
   /** 지금까지 챗봇이 대화에서 알아낸 신고 내용 (신고 진행 중 응답일 때만) — 구석의 "접수 내용" 보기용 */
   slots?: SlotsFilled;
+  /** 이번 응답으로 접수된 신고의 접수번호 (접수 완료 응답일 때만) — 본인 신고 조회(1-12)에서 "내 신고" 목록으로 씀 */
+  reportNo?: number;
 }
 
 // ── GET /locations 응답 (명세 5-1, 접수 폼 위치 선택 목록 — 건물 → 층 → 세부장소) ──

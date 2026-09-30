@@ -111,7 +111,11 @@ function interpretJsonReply(reply: ChatJsonReply): ChatResult {
     return { text: reply.clarifying_question, phase: "none" };
   }
   if ("report_created" in reply) {
-    return { text: reportCreatedText(reply), phase: "ended" };
+    return {
+      text: reportCreatedText(reply),
+      phase: "ended",
+      reportNo: reply.report.display_no,
+    };
   }
   if ("report_cancelled" in reply) {
     return { text: reply.message, phase: "ended" };

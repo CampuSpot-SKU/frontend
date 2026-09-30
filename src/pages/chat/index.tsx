@@ -9,9 +9,11 @@
 //   칩에 없는 답은 입력창에 자유롭게 쓰면 된다.
 import { useEffect, useRef, useState } from "react";
 import { chatErrorMessage, sendChatMessage } from "../../api/chat";
+import { rememberMyReport } from "../../api/reports";
 import ChatInput from "../../components/ChatInput";
 import MessageBubble from "../../components/MessageBubble";
 import TypingIndicator from "../../components/TypingIndicator";
+import ReportStatusDialog from "../../components/report/ReportStatusDialog";
 import SlotsCorner from "../../components/report/SlotsCorner";
 import type { ChatMessage, SlotsFilled } from "../../types/chat";
 
@@ -42,6 +44,8 @@ function ChatPage() {
   const [choices, setChoices] = useState<string[]>([]);
   // 챗봇이 지금까지 알아낸 신고 내용 — 구석의 [접수 내용 보기]용 (신고 중이 아니면 null)
   const [slots, setSlots] = useState<SlotsFilled | null>(null);
+  // 본인 신고 조회 창 (1-12)
+  const [statusOpen, setStatusOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   // 새 메시지가 생기면 맨 아래로 스크롤
@@ -71,6 +75,8 @@ function ChatPage() {
       showReply(result.text);
       setChoices(result.choices ?? []);
       setSlots(result.slots ?? null);
+      // 접수가 완료되면 조회 창의 "이 브라우저에서 접수한 신고" 목록에 추가 (1-12)
+      if (result.reportNo !== undefined) rememberMyReport(result.reportNo);
     } catch (err) {
       // 실패하면 오류 문구만 표시 (같은 말을 다시 보내면 됨)
       showReply(chatErrorMessage(err));
@@ -81,11 +87,20 @@ function ChatPage() {
   return (
     <div className="flex h-dvh flex-col bg-gray-50">
       <header className="shrink-0 border-b border-gray-200 bg-white">
-        <div className="mx-auto max-w-2xl px-4 py-3">
-          <h1 className="text-lg font-bold text-gray-900">CampuSpot</h1>
-          <p className="text-xs text-gray-500">
-            캠퍼스 불편 신고 · 학교 행정 문의
-          </p>
+        <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-4 py-3">
+          <div>
+            <h1 className="text-lg font-bold text-gray-900">CampuSpot</h1>
+            <p className="text-xs text-gray-500">
+              캠퍼스 불편 신고 · 학교 행정 문의
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setStatusOpen(true)}
+            className="shrink-0 rounded-full border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100"
+          >
+            내 신고 조회
+          </button>
         </div>
       </header>
 
@@ -131,6 +146,10 @@ function ChatPage() {
       </main>
 
       <SlotsCorner slots={slots} />
+
+      {statusOpen && (
+        <ReportStatusDialog onClose={() => setStatusOpen(false)} />
+      )}
 
       <footer className="shrink-0 border-t border-gray-200 bg-white">
         <div className="mx-auto max-w-2xl px-4 py-3">
