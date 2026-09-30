@@ -3,16 +3,14 @@
 // 흐름 (명세서 5-1 "사용자용 — 챗봇"):
 //   1) 브라우저에 session_id가 없으면 POST /chat/sessions로 만들고 localStorage에 저장
 //   2) POST /chat/sessions/{session_id}/messages {content, action?, draft?}
-//      - action: 버튼([안내만 받을래요]/[접수]/[취소])을 눌렀을 때만. [접수]는 draft(최종 폼 값)도 같이
+//      - action·draft: 대화형 개편 이후 화면이 보내지 않음 (backend는 계속 받아줌 — 하위 호환)
 //   3) 응답 종류에 따라 화면에 보여줄 문구 + 신고 흐름 단계(phase)로 바꿈
 //      - JSON: 신고 되묻기 / 요약 확인(confirm_required) / 취소(report_cancelled) /
 //              접수 완료(report_created) / 애매함(clarifying_question)
 //      - SSE(text/event-stream): 행정문의 답변. 이벤트마다 {delta}, 마지막에 {done, sources}
 //   세션이 없다고(404) 하면 새 세션을 만들어 한 번만 다시 보낸다 (DB 초기화 등으로 세션이 사라진 경우).
 //
-// 신고 흐름 개편(명세 4-1, 작업 1-5b)의 접수 폼·버튼은 backend가 1-3c 형식으로 응답할 때만 켜진다.
-// 판단 기준: slots_filled에 building 필드가 있으면 1-3c backend. 그 전 backend에서는 phase가
-// 항상 "none"이라 화면이 1-5 때와 똑같이 동작한다.
+// 신고 흐름은 대화형(명세 4-1): 접수 제안 → 정보 묻기 → 문장 확인. 응답의 choices는 추천 답변 칩.
 import {
   API_BASE_URL,
   API_PREFIX,
@@ -29,7 +27,6 @@ import type {
   MessageIn,
   ReportDraft,
   SessionCreated,
-  SlotsFilled,
 } from "../types/chat";
 
 /** 스트리밍 중 지금까지 받은 답변 전체를 넘겨주는 콜백 (말풍선을 실시간으로 채우는 용도) */
@@ -109,21 +106,6 @@ async function readBody(res: Response): Promise<unknown> {
   }
 }
 
-/** 1-3c backend인지: slots_filled에 building 필드(값이 null이어도)가 있으면 새 형식 */
-function isNewReportFormat(slots: SlotsFilled): boolean {
-  return "building" in slots;
-}
-
-/** 대화로 알아낸 값 → 폼 값 (null은 빈칸) */
-function slotsToDraft(slots: SlotsFilled): ReportDraft {
-  return {
-    building: slots.building ?? "",
-    floor: slots.floor ?? "",
-    detail: slots.detail ?? "",
-    description: slots.description ?? "",
-  };
-}
-
 function interpretJsonReply(reply: ChatJsonReply): ChatResult {
   if (reply.intent === "unclear") {
     return { text: reply.clarifying_question, phase: "none" };
@@ -134,20 +116,13 @@ function interpretJsonReply(reply: ChatJsonReply): ChatResult {
   if ("report_cancelled" in reply) {
     return { text: reply.message, phase: "ended" };
   }
-  if (!isNewReportFormat(reply.slots_filled)) {
-    // 1-3c 전 backend: 폼·버튼 없이 문구만 (1-5 때와 같음)
-    return { text: reply.follow_up_question, phase: "none" };
-  }
-  const draft = slotsToDraft(reply.slots_filled);
+  // 대화형 흐름: 접수 제안·되묻기·확인 모두 그냥 챗봇의 말 + (있으면) 추천 답변 칩.
+  // 위치·상황을 따로 보여주는 폼은 없음 — 알아낸 내용은 챗봇이 문장으로 확인해 줌
+  const choices = reply.choices ?? undefined;
   if ("confirm_required" in reply) {
-    return { text: reply.summary, phase: "confirming", draft };
+    return { text: reply.summary, phase: "none", choices };
   }
-  return {
-    text: reply.follow_up_question,
-    phase: "collecting",
-    draft,
-    choices: reply.choices ?? undefined,
-  };
+  return { text: reply.follow_up_question, phase: "none", choices };
 }
 
 function reportCreatedText(

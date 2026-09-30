@@ -52,7 +52,7 @@ export interface ReportFollowUp {
   intent: "report";
   follow_up_question: string;
   slots_filled: SlotsFilled;
-  /** 버튼으로 보여줄 선택지 (은주관 되묻기: ["은주1관","은주2관","잘 모르겠어요"]). 누르면 그 글자를 일반 메시지로 보냄. 없으면 null (1-3c) */
+  /** 눌러서 고를 수 있는 추천 답변 (접수 제안·되묻기 등). 누르면 그 글자를 일반 메시지로 보냄 (직접 입력도 항상 가능). 없으면 null */
   choices?: string[] | null;
 }
 
@@ -63,6 +63,8 @@ export interface ReportConfirm {
   summary: string;
   follow_up_question: string; // summary와 같은 문구 (1-5b 전 화면을 위한 하위 호환)
   slots_filled: SlotsFilled;
+  /** 눌러서 고를 수 있는 추천 답변 ("네, 접수해 주세요" 등). 직접 입력도 가능 */
+  choices?: string[] | null;
 }
 
 /** 신고 취소됨 (1-3c) */
@@ -122,7 +124,7 @@ export interface ChatResult {
   phase: ReportPhase;
   /** 대화로 알아낸 폼 값 (collecting·confirming일 때만) */
   draft?: ReportDraft;
-  /** 되묻기 선택지 버튼 (collecting일 때만, 없으면 undefined) */
+  /** 추천 답변 칩 (없으면 undefined) */
   choices?: string[];
 }
 
