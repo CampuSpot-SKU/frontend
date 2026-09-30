@@ -52,6 +52,8 @@ export interface ReportFollowUp {
   intent: "report";
   follow_up_question: string;
   slots_filled: SlotsFilled;
+  /** 버튼으로 보여줄 선택지 (은주관 되묻기: ["은주1관","은주2관","잘 모르겠어요"]). 누르면 그 글자를 일반 메시지로 보냄. 없으면 null (1-3c) */
+  choices?: string[] | null;
 }
 
 /** 요약 확인 단계 — [접수] [수정] [취소] 버튼을 보여줌 (1-3c) */
@@ -120,4 +122,41 @@ export interface ChatResult {
   phase: ReportPhase;
   /** 대화로 알아낸 폼 값 (collecting·confirming일 때만) */
   draft?: ReportDraft;
+  /** 되묻기 선택지 버튼 (collecting일 때만, 없으면 undefined) */
+  choices?: string[];
+}
+
+// ── GET /locations 응답 (명세 5-1, 접수 폼 위치 선택 목록 — 건물 → 층 → 세부장소) ──
+// 각 목록의 맨 끝 항목은 {label: "목록에 없음 (직접 입력)", custom: true}
+
+/** "목록에 없음 (직접 입력)" 항목 */
+export interface LocationCustomItem {
+  label: string;
+  custom: true;
+}
+
+export interface LocationPlace {
+  label: string;
+  room_no?: string | null;
+  use?: string | null;
+  custom?: false;
+}
+
+export interface LocationFloor {
+  /** "B1"·"3" 등. 층 구분이 없는 묶음(입구 등)은 null */
+  floor: string | null;
+  label: string;
+  places: (LocationPlace | LocationCustomItem)[];
+  custom?: false;
+}
+
+export interface LocationBuilding {
+  /** 건물 이름. 건물 DB에 없는 "실외·기타" 묶음도 이 형식 (고르면 건물은 비우고 세부장소만 보냄) */
+  name: string;
+  floors: (LocationFloor | LocationCustomItem)[];
+  custom?: false;
+}
+
+export interface LocationOptions {
+  buildings: (LocationBuilding | LocationCustomItem)[];
 }

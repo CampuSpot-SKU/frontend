@@ -11,15 +11,26 @@
 import { useEffect, useRef, useState } from "react";
 import type { SendOptions } from "../../api/chat";
 import { chatErrorMessage, sendChatMessage } from "../../api/chat";
+import { fetchLocations } from "../../api/locations";
 import ChatInput from "../../components/ChatInput";
 import MessageBubble from "../../components/MessageBubble";
 import TypingIndicator from "../../components/TypingIndicator";
 import ReportActions from "../../components/report/ReportActions";
 import {
+  applyToiletGender,
+  needsToiletChoice,
+} from "../../components/report/ToiletChips";
+import type { ToiletGender } from "../../components/report/ToiletChips";
+import {
   ReportPanelDesktop,
   ReportPanelMobile,
 } from "../../components/report/ReportPanel";
-import type { ChatMessage, ReportDraft, ReportPhase } from "../../types/chat";
+import type {
+  ChatMessage,
+  LocationOptions,
+  ReportDraft,
+  ReportPhase,
+} from "../../types/chat";
 
 const WELCOME: ChatMessage = {
   id: "welcome",
@@ -64,6 +75,12 @@ function ChatPage() {
   // (ref인 이유: 응답을 기다리는 동안 고친 칸도 응답 처리 시점에 바로 반영되게)
   const editedRef = useRef<Set<keyof ReportDraft>>(new Set());
   const [mobileOpen, setMobileOpen] = useState(false);
+  // 되묻기 선택지 버튼 (은주관 [은주1관][은주2관][잘 모르겠어요])
+  const [choices, setChoices] = useState<string[] | undefined>();
+  // 화장실 [남][여][모름] — [접수] 때 세부장소에 붙여 보냄 (선택 사항)
+  const [toilet, setToilet] = useState<ToiletGender>(null);
+  // 접수 폼 위치 선택 목록 (GET /locations) — 신고가 시작되면 한 번 받아옴
+  const [locations, setLocations] = useState<LocationOptions | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const showReportUi = phase === "collecting" || phase === "confirming";
@@ -73,6 +90,12 @@ function ChatPage() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, waiting, phase]);
+
+  useEffect(() => {
+    if (showReportUi && !locations) {
+      fetchLocations().then((l) => l && setLocations(l));
+    }
+  }, [showReportUi, locations]);
 
   // [수정]을 누르면 지금 화면에 보이는 폼(패널 또는 카드)의 첫 칸에 커서
   useEffect(() => {
@@ -90,6 +113,7 @@ function ChatPage() {
     setEditing(false);
     editedRef.current = new Set();
     setMobileOpen(false);
+    setToilet(null);
   };
 
   const handleSend = async (
@@ -118,6 +142,7 @@ function ChatPage() {
       });
       showReply(result.text);
       setPhase(result.phase);
+      setChoices(result.choices);
       if (result.phase === "collecting" || result.phase === "confirming") {
         const fromChat = result.draft ?? EMPTY_DRAFT;
         // 대화로 알아낸 값으로 폼을 채우되, 학생이 직접 고친 칸은 그대로 둠
@@ -150,7 +175,10 @@ function ChatPage() {
 
   const handleConfirm = () => {
     if (!canConfirm) return;
-    handleSend("접수", { action: "confirm_report", draft });
+    handleSend("접수", {
+      action: "confirm_report",
+      draft: { ...draft, detail: applyToiletGender(draft.detail, toilet) },
+    });
   };
 
   return (
@@ -174,6 +202,9 @@ function ChatPage() {
               canConfirm={canConfirm}
               onChange={handleDraftChange}
               onConfirm={handleConfirm}
+              locations={locations}
+              toilet={toilet}
+              onToiletChange={setToilet}
               open={mobileOpen}
               onToggle={() => setMobileOpen((v) => !v)}
             />
@@ -220,6 +251,11 @@ function ChatPage() {
                   onCancel={() =>
                     handleSend("취소", { action: "cancel_report" })
                   }
+                  choices={choices}
+                  onChoice={(c) => handleSend(c)}
+                  showToilet={needsToiletChoice(draft.detail)}
+                  toilet={toilet}
+                  onToiletChange={setToilet}
                 />
               )}
               <div ref={bottomRef} />
@@ -241,6 +277,9 @@ function ChatPage() {
             canConfirm={canConfirm}
             onChange={handleDraftChange}
             onConfirm={handleConfirm}
+            locations={locations}
+            toilet={toilet}
+            onToiletChange={setToilet}
           />
         )}
       </div>

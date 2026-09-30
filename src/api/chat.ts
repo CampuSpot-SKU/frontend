@@ -142,7 +142,12 @@ function interpretJsonReply(reply: ChatJsonReply): ChatResult {
   if ("confirm_required" in reply) {
     return { text: reply.summary, phase: "confirming", draft };
   }
-  return { text: reply.follow_up_question, phase: "collecting", draft };
+  return {
+    text: reply.follow_up_question,
+    phase: "collecting",
+    draft,
+    choices: reply.choices ?? undefined,
+  };
 }
 
 function reportCreatedText(

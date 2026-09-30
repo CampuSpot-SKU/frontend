@@ -1,4 +1,6 @@
 import type { ReportPhase } from "../../types/chat";
+import ToiletChips from "./ToiletChips";
+import type { ToiletGender } from "./ToiletChips";
 
 interface Props {
   phase: ReportPhase;
@@ -9,6 +11,13 @@ interface Props {
   onConfirm: () => void;
   onEdit: () => void;
   onCancel: () => void;
+  /** 되묻기 선택지 (은주관: ["은주1관","은주2관","잘 모르겠어요"]) — 누르면 그 글자를 일반 메시지로 보냄 */
+  choices?: string[];
+  onChoice: (text: string) => void;
+  /** 요약 카드의 화장실 [남][여][모름] 칩 — 세부장소가 화장실일 때만 보임 */
+  showToilet: boolean;
+  toilet: ToiletGender;
+  onToiletChange: (g: ToiletGender) => void;
 }
 
 const base =
@@ -27,10 +36,26 @@ function ReportActions({
   onConfirm,
   onEdit,
   onCancel,
+  choices,
+  onChoice,
+  showToilet,
+  toilet,
+  onToiletChange,
 }: Props) {
   if (phase === "collecting") {
     return (
       <div className="flex flex-wrap gap-2 pl-1">
+        {choices?.map((c) => (
+          <button
+            key={c}
+            type="button"
+            disabled={disabled}
+            onClick={() => onChoice(c)}
+            className={`${base} border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100`}
+          >
+            {c}
+          </button>
+        ))}
         <button
           type="button"
           disabled={disabled}
@@ -44,31 +69,40 @@ function ReportActions({
   }
   if (phase === "confirming") {
     return (
-      <div className="flex flex-wrap gap-2 pl-1">
-        <button
-          type="button"
-          disabled={disabled || !canConfirm}
-          onClick={onConfirm}
-          className={`${base} bg-blue-600 text-white hover:bg-blue-700`}
-        >
-          접수
-        </button>
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={onEdit}
-          className={`${base} border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100`}
-        >
-          수정
-        </button>
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={onCancel}
-          className={`${base} border border-gray-300 bg-white text-gray-700 hover:bg-gray-100`}
-        >
-          취소
-        </button>
+      <div className="flex flex-col gap-2 pl-1">
+        {showToilet && (
+          <ToiletChips
+            value={toilet}
+            onChange={onToiletChange}
+            disabled={disabled}
+          />
+        )}
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={disabled || !canConfirm}
+            onClick={onConfirm}
+            className={`${base} bg-blue-600 text-white hover:bg-blue-700`}
+          >
+            접수
+          </button>
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={onEdit}
+            className={`${base} border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100`}
+          >
+            수정
+          </button>
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={onCancel}
+            className={`${base} border border-gray-300 bg-white text-gray-700 hover:bg-gray-100`}
+          >
+            취소
+          </button>
+        </div>
       </div>
     );
   }

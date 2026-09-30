@@ -1,5 +1,6 @@
-import type { ReportDraft } from "../../types/chat";
+import type { LocationOptions, ReportDraft } from "../../types/chat";
 import ReportDraftForm from "./ReportDraftForm";
+import type { ToiletGender } from "./ToiletChips";
 
 interface Props {
   draft: ReportDraft;
@@ -8,6 +9,9 @@ interface Props {
   canConfirm: boolean;
   onChange: (field: keyof ReportDraft, value: string) => void;
   onConfirm: () => void;
+  locations: LocationOptions | null;
+  toilet: ToiletGender;
+  onToiletChange: (g: ToiletGender) => void;
 }
 
 interface MobileProps extends Props {
@@ -56,6 +60,9 @@ export function ReportPanelDesktop(props: Props) {
         draft={props.draft}
         editing={props.editing}
         onChange={props.onChange}
+        locations={props.locations}
+        toilet={props.toilet}
+        onToiletChange={props.onToiletChange}
         idPrefix="panel"
       />
       <PanelFooter {...props} />
@@ -105,6 +112,9 @@ export function ReportPanelMobile(props: MobileProps) {
             draft={draft}
             editing={props.editing}
             onChange={props.onChange}
+            locations={props.locations}
+            toilet={props.toilet}
+            onToiletChange={props.onToiletChange}
             idPrefix="card"
           />
           <PanelFooter {...props} />
