@@ -39,7 +39,7 @@ function ChatInput({ onSend, disabled }: Props) {
         </button>
       </form>
       <p className="mt-1.5 px-1 text-xs text-gray-500">
-        이름·학번·연락처는 입력하지 마세요.
+        이름·학번·연락처 등 개인정보는 입력하지 마세요.
       </p>
     </div>
   );
