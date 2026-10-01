@@ -115,6 +115,7 @@ function interpretJsonReply(reply: ChatJsonReply): ChatResult {
       text: reportCreatedText(reply),
       phase: "ended",
       reportNo: reply.report.display_no,
+      choices: reply.choices ?? undefined,
     };
   }
   if ("report_cancelled" in reply) {

@@ -89,6 +89,8 @@ export interface ReportCreated {
   };
   /** backend가 만든 완성 안내 문구(접수번호·위치·AI 판정 이유). 1-3c에서 추가 — 있으면 그대로 표시 */
   message?: string;
+  /** 한 건씩 접수하느라 남은 건 — 누르면 그 글자가 새 신고로 전송됨 (추천 답변 칩). 없으면 null */
+  choices?: string[] | null;
 }
 
 /** 신고인지 문의인지 애매 — 되묻기 */
