@@ -1,5 +1,6 @@
 // 접수 상세보기 + 상태 변경 (오른쪽에서 열리는 패널).
-// 상태는 정상 경로(접수→배정→처리중→해결→종료)의 다음 단계 버튼만 보여준다.
+// 상태는 정상 경로(접수→배정→처리중→해결→종료)의 다음 단계 버튼을 보여주고,
+// 해결 상태에서만 보조 버튼 [처리중으로 되돌리기(재오픈)]를 함께 보여준다 (1-7b, 명세 4-2·10-2).
 // 허용되지 않는 전이는 backend가 409로 거절하므로 그 메시지를 그대로 보여준다 (규칙은 1-7, 명세 10-2).
 import { useEffect, useState } from "react";
 import {
@@ -19,6 +20,10 @@ const NEXT_STATUS: Record<ReportStatus, ReportStatus | null> = {
   해결: "종료",
   종료: null,
 };
+
+/** 해결 → 처리중 되돌리기(재오픈)만 정상 경로 밖에서 허용된 전이 (명세 10-2) */
+const REOPEN_FROM: ReportStatus = "해결";
+const REOPEN_TO: ReportStatus = "처리중";
 
 /** ApiError에서 사용자에게 보여줄 문장 (backend는 {detail: "..."} 형식) */
 function errorMessage(err: unknown, fallback: string): string {
@@ -114,6 +119,7 @@ export default function ReportDetailPanel({
   }, [onClose]);
 
   const next = detail ? NEXT_STATUS[detail.status] : null;
+  const canReopen = detail?.status === REOPEN_FROM;
 
   const submit = async (to: ReportStatus) => {
     if (!detail || saving) return;
@@ -211,7 +217,11 @@ export default function ReportDetailPanel({
                     onChange={(e) => setMemo(e.target.value)}
                     maxLength={1000}
                     rows={2}
-                    placeholder="처리 메모 (선택) — 예: 시설팀 배정, 오후 방문 예정"
+                    placeholder={
+                      canReopen
+                        ? "처리 메모 (선택) — 재오픈할 때는 재발 사유를 적어 주세요"
+                        : "처리 메모 (선택) — 예: 시설팀 배정, 오후 방문 예정"
+                    }
                     className="w-full rounded-lg border border-gray-300 px-3 py-2"
                   />
                   <button
@@ -222,6 +232,21 @@ export default function ReportDetailPanel({
                   >
                     {saving ? "변경 중…" : `${next} 단계로 변경`}
                   </button>
+                  {canReopen && (
+                    <>
+                      <button
+                        type="button"
+                        disabled={saving}
+                        onClick={() => void submit(REOPEN_TO)}
+                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                      >
+                        처리중으로 되돌리기(재오픈)
+                      </button>
+                      <p className="text-xs text-gray-500">
+                        같은 문제가 다시 생겼다면 재오픈하세요. 재발 사유를 메모에 적으면 처리 이력에 남아요.
+                      </p>
+                    </>
+                  )}
                 </div>
               ) : (
                 <p className="text-gray-500">종료된 신고예요.</p>
