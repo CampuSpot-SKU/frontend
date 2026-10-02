@@ -67,3 +67,35 @@ export interface AdminReportDetail extends AdminReportItem {
   updated_at: string;
   status_history: StatusHistoryItem[];
 }
+
+// ── 탐지·예측 (작업 1-8 문제 후보 화면, 1-11 예방 점검 화면 — 명세서 3-3, 5-1 관리자용) ──
+
+export type ClusterStatus = "후보" | "승격" | "기각";
+
+/** GET /admin/problem-clusters 한 줄 (PATCH 응답도 같은 모양) */
+export interface ProblemCluster {
+  id: string;
+  building: NamedRef | null;
+  detail: string | null;
+  category: NamedRef;
+  report_count: number; // 묶인 신고 수
+  detected_at: string; // ISO 날짜 문자열
+  status: ClusterStatus;
+}
+
+export interface ProblemClusterList {
+  items: ProblemCluster[];
+}
+
+/** GET /admin/predictions 한 줄 — 같은 건물+카테고리 과거 신고 3건 이상일 때만 나옴 */
+export interface PredictionItem {
+  building: NamedRef | null;
+  detail: string | null;
+  category: NamedRef;
+  avg_recurrence_days: number; // 소수 가능
+  predicted_next_at: string; // ISO 날짜 문자열
+}
+
+export interface PredictionList {
+  items: PredictionItem[];
+}

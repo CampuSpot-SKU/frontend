@@ -1,9 +1,14 @@
 // 관리자 대시보드 페이지 (작업 1-6 화면, 2단계: 필터·정렬·SLA 강조·상세보기·상태 변경).
-// 로그인 전 → 로그인 폼 / 로그인 후 → 필터 막대 + 접수 목록 표 + (행 선택 시) 상세 패널.
+// 로그인 전 → 로그인 폼 / 로그인 후 → 탭 3개(접수 목록·문제 후보·예방 점검).
+// 접수 목록 탭: 필터 막대 + 접수 목록 표 + (행 선택 시) 상세 패널. 문제 후보·예방 점검은 작업 1-8·1-11.
 import { useCallback, useEffect, useState } from "react";
 import { clearAdminToken, fetchReports, getAdminToken, REPORT_LIMIT } from "../../api/admin";
+import { fetchProblemClusters } from "../../api/adminDetection";
 import { ApiError } from "../../api/client";
+import AdminTabs, { type AdminTab } from "../../components/admin/AdminTabs";
 import LoginForm from "../../components/admin/LoginForm";
+import PredictionPanel from "../../components/admin/PredictionPanel";
+import ProblemClusterPanel from "../../components/admin/ProblemClusterPanel";
 import ReportDetailPanel from "../../components/admin/ReportDetailPanel";
 import ReportFilterBar, { DEFAULT_FILTERS } from "../../components/admin/ReportFilterBar";
 import ReportTable from "../../components/admin/ReportTable";
@@ -23,6 +28,10 @@ function AdminPage() {
   // 카테고리 필터 선택지 — 카테고리 목록 API가 아직 없어서(3순위 1-17) 지금까지 본 목록에서 모음
   const [categories, setCategories] = useState<NamedRef[]>([]);
   const [reloadKey, setReloadKey] = useState(0);
+  const [tab, setTab] = useState<AdminTab>("reports");
+  // 탭 배지용 "후보" 상태 문제 후보 건수 — null이면 배지를 숨김 (불러오기 실패·API 미배포)
+  const [candidateCount, setCandidateCount] = useState<number | null>(null);
+  const [badgeKey, setBadgeKey] = useState(0);
 
   const logout = useCallback(() => {
     clearAdminToken();
@@ -31,6 +40,8 @@ function AdminPage() {
     setSelectedId(null);
     setCategories([]);
     setFilters(DEFAULT_FILTERS);
+    setTab("reports");
+    setCandidateCount(null);
   }, []);
 
   useEffect(() => {
@@ -61,6 +72,27 @@ function AdminPage() {
     };
   }, [token, filters, reloadKey, logout]);
 
+  // 문제 후보 알림 배지: 페이지가 열릴 때·새로고침·승격/기각 처리 뒤에 후보 건수를 다시 센다
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    fetchProblemClusters(token, "후보")
+      .then((res) => {
+        if (!cancelled) setCandidateCount(res.items.length);
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        if (err instanceof ApiError && err.status === 401) {
+          logout();
+          return;
+        }
+        setCandidateCount(null); // 배지만 숨기고 다른 화면은 그대로
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [token, reloadKey, badgeKey, logout]);
+
   if (!token) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-gray-50 px-4">
@@ -77,7 +109,9 @@ function AdminPage() {
             <h1 className="text-lg font-bold text-gray-900">
               CampuSpot 관리자
             </h1>
-            <p className="text-xs text-gray-500">접수 목록</p>
+            <p className="text-xs text-gray-500">
+              {tab === "reports" ? "접수 목록" : tab === "clusters" ? "문제 후보" : "예방 점검"}
+            </p>
           </div>
           <div className="flex gap-2">
             <button
@@ -96,34 +130,50 @@ function AdminPage() {
             </button>
           </div>
         </div>
+        <AdminTabs tab={tab} onChange={setTab} candidateCount={candidateCount} />
       </header>
 
       <main className="mx-auto max-w-6xl px-4 py-4">
-        <ReportFilterBar
-          filters={filters}
-          categories={categories}
-          onChange={setFilters}
-        />
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        {!error && reports === null && (
-          <p className="text-sm text-gray-400">불러오는 중…</p>
-        )}
-        {reports !== null && (
+        {tab === "reports" && (
           <>
-            <p className="mb-2 text-sm text-gray-600">
-              전체 {total}건
-              {total > REPORT_LIMIT && ` (최근 ${REPORT_LIMIT}건만 표시 — 필터로 좁혀 보세요)`}
-            </p>
-            <ReportTable
-              reports={reports}
-              selectedId={selectedId}
-              onSelect={setSelectedId}
+            <ReportFilterBar
+              filters={filters}
+              categories={categories}
+              onChange={setFilters}
             />
+            {error && <p className="text-sm text-red-600">{error}</p>}
+            {!error && reports === null && (
+              <p className="text-sm text-gray-400">불러오는 중…</p>
+            )}
+            {reports !== null && (
+              <>
+                <p className="mb-2 text-sm text-gray-600">
+                  전체 {total}건
+                  {total > REPORT_LIMIT && ` (최근 ${REPORT_LIMIT}건만 표시 — 필터로 좁혀 보세요)`}
+                </p>
+                <ReportTable
+                  reports={reports}
+                  selectedId={selectedId}
+                  onSelect={setSelectedId}
+                />
+              </>
+            )}
           </>
+        )}
+        {tab === "clusters" && (
+          <ProblemClusterPanel
+            token={token}
+            reloadKey={reloadKey}
+            onChanged={() => setBadgeKey((k) => k + 1)}
+            onUnauthorized={logout}
+          />
+        )}
+        {tab === "predictions" && (
+          <PredictionPanel token={token} reloadKey={reloadKey} onUnauthorized={logout} />
         )}
       </main>
 
-      {selectedId && (
+      {tab === "reports" && selectedId && (
         <ReportDetailPanel
           token={token}
           reportId={selectedId}
