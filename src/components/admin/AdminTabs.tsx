@@ -1,12 +1,14 @@
-// 관리자 화면 탭 4개 — 접수 목록 · 문제 후보(후보 건수 배지) · 예방 점검 (작업 1-8·1-11) · 설정 (작업 1-17).
+// 관리자 화면 탭 5개 — 접수 목록 · 문제 후보(후보 건수 배지) · 예방 점검 (작업 1-8·1-11) · 통계 (작업 1-16) · 설정 (작업 1-17).
 // 라우터 없이 React 상태로만 전환한다.
 
-export type AdminTab = "reports" | "clusters" | "predictions" | "settings";
+export type AdminTab =
+  "reports" | "clusters" | "predictions" | "stats" | "settings";
 
 const TABS: { value: AdminTab; label: string }[] = [
   { value: "reports", label: "접수 목록" },
   { value: "clusters", label: "문제 후보" },
   { value: "predictions", label: "예방 점검" },
+  { value: "stats", label: "통계" },
   { value: "settings", label: "설정" },
 ];
 
@@ -22,7 +24,7 @@ export default function AdminTabs({ tab, onChange, candidateCount }: Props) {
     <div
       role="tablist"
       aria-label="관리자 메뉴"
-      className="mx-auto flex max-w-6xl gap-1 px-4"
+      className="mx-auto flex max-w-6xl gap-1 overflow-x-auto px-4"
     >
       {TABS.map((t) => {
         const selected = t.value === tab;
@@ -33,7 +35,7 @@ export default function AdminTabs({ tab, onChange, candidateCount }: Props) {
             role="tab"
             aria-selected={selected}
             onClick={() => onChange(t.value)}
-            className={`flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-medium ${
+            className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium ${
               selected
                 ? "border-blue-600 text-blue-700"
                 : "border-transparent text-gray-500 hover:text-gray-800"

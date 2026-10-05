@@ -1,6 +1,6 @@
 // 관리자 대시보드 페이지 (작업 1-6 화면, 2단계: 필터·정렬·SLA 강조·상세보기·상태 변경).
-// 로그인 전 → 로그인 폼 / 로그인 후 → 탭 4개(접수 목록·문제 후보·예방 점검·설정).
-// 접수 목록 탭: 필터 막대 + 접수 목록 표 + (행 선택 시) 상세 패널. 문제 후보·예방 점검은 작업 1-8·1-11, 설정은 작업 1-17.
+// 로그인 전 → 로그인 폼 / 로그인 후 → 탭 5개(접수 목록·문제 후보·예방 점검·통계·설정).
+// 접수 목록 탭: 필터 막대 + 접수 목록 표 + (행 선택 시) 상세 패널. 문제 후보·예방 점검은 작업 1-8·1-11, 통계는 작업 1-16, 설정은 작업 1-17.
 import { useCallback, useEffect, useState } from "react";
 import { clearAdminToken, fetchReports, getAdminToken, REPORT_LIMIT } from "../../api/admin";
 import { fetchProblemClusters } from "../../api/adminDetection";
@@ -12,6 +12,7 @@ import ProblemClusterPanel from "../../components/admin/ProblemClusterPanel";
 import ReportDetailPanel from "../../components/admin/ReportDetailPanel";
 import ReportFilterBar, { DEFAULT_FILTERS } from "../../components/admin/ReportFilterBar";
 import ReportTable from "../../components/admin/ReportTable";
+import StatsPanel from "../../components/admin/StatsPanel";
 import SettingsPanel from "../../components/admin/settings/SettingsPanel";
 import type {
   AdminReportItem,
@@ -23,6 +24,7 @@ const TAB_TITLES: Record<AdminTab, string> = {
   reports: "접수 목록",
   clusters: "문제 후보",
   predictions: "예방 점검",
+  stats: "통계",
   settings: "설정",
 };
 
@@ -178,6 +180,9 @@ function AdminPage() {
         )}
         {tab === "predictions" && (
           <PredictionPanel token={token} reloadKey={reloadKey} onUnauthorized={logout} />
+        )}
+        {tab === "stats" && (
+          <StatsPanel token={token} reloadKey={reloadKey} onUnauthorized={logout} />
         )}
         {tab === "settings" && (
           <SettingsPanel token={token} reloadKey={reloadKey} onUnauthorized={logout} />
