@@ -1,6 +1,6 @@
 // 관리자 대시보드 페이지 (작업 1-6 화면, 2단계: 필터·정렬·SLA 강조·상세보기·상태 변경).
-// 로그인 전 → 로그인 폼 / 로그인 후 → 탭 3개(접수 목록·문제 후보·예방 점검).
-// 접수 목록 탭: 필터 막대 + 접수 목록 표 + (행 선택 시) 상세 패널. 문제 후보·예방 점검은 작업 1-8·1-11.
+// 로그인 전 → 로그인 폼 / 로그인 후 → 탭 4개(접수 목록·문제 후보·예방 점검·설정).
+// 접수 목록 탭: 필터 막대 + 접수 목록 표 + (행 선택 시) 상세 패널. 문제 후보·예방 점검은 작업 1-8·1-11, 설정은 작업 1-17.
 import { useCallback, useEffect, useState } from "react";
 import { clearAdminToken, fetchReports, getAdminToken, REPORT_LIMIT } from "../../api/admin";
 import { fetchProblemClusters } from "../../api/adminDetection";
@@ -12,11 +12,19 @@ import ProblemClusterPanel from "../../components/admin/ProblemClusterPanel";
 import ReportDetailPanel from "../../components/admin/ReportDetailPanel";
 import ReportFilterBar, { DEFAULT_FILTERS } from "../../components/admin/ReportFilterBar";
 import ReportTable from "../../components/admin/ReportTable";
+import SettingsPanel from "../../components/admin/settings/SettingsPanel";
 import type {
   AdminReportItem,
   NamedRef,
   ReportFilters,
 } from "../../types/admin";
+
+const TAB_TITLES: Record<AdminTab, string> = {
+  reports: "접수 목록",
+  clusters: "문제 후보",
+  predictions: "예방 점검",
+  settings: "설정",
+};
 
 function AdminPage() {
   const [token, setToken] = useState<string | null>(getAdminToken);
@@ -110,7 +118,7 @@ function AdminPage() {
               CampuSpot 관리자
             </h1>
             <p className="text-xs text-gray-500">
-              {tab === "reports" ? "접수 목록" : tab === "clusters" ? "문제 후보" : "예방 점검"}
+              {TAB_TITLES[tab]}
             </p>
           </div>
           <div className="flex gap-2">
@@ -170,6 +178,9 @@ function AdminPage() {
         )}
         {tab === "predictions" && (
           <PredictionPanel token={token} reloadKey={reloadKey} onUnauthorized={logout} />
+        )}
+        {tab === "settings" && (
+          <SettingsPanel token={token} reloadKey={reloadKey} onUnauthorized={logout} />
         )}
       </main>
 

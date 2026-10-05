@@ -1,12 +1,13 @@
-// 관리자 화면 탭 3개 — 접수 목록 · 문제 후보(후보 건수 배지) · 예방 점검 (작업 1-8·1-11).
+// 관리자 화면 탭 4개 — 접수 목록 · 문제 후보(후보 건수 배지) · 예방 점검 (작업 1-8·1-11) · 설정 (작업 1-17).
 // 라우터 없이 React 상태로만 전환한다.
 
-export type AdminTab = "reports" | "clusters" | "predictions";
+export type AdminTab = "reports" | "clusters" | "predictions" | "settings";
 
 const TABS: { value: AdminTab; label: string }[] = [
   { value: "reports", label: "접수 목록" },
   { value: "clusters", label: "문제 후보" },
   { value: "predictions", label: "예방 점검" },
+  { value: "settings", label: "설정" },
 ];
 
 interface Props {
