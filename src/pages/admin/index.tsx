@@ -1,10 +1,11 @@
 // 관리자 대시보드 페이지 (작업 1-6 화면, 2단계: 필터·정렬·SLA 강조·상세보기·상태 변경).
-// 로그인 전 → 로그인 폼 / 로그인 후 → 탭 5개(접수 목록·문제 후보·예방 점검·통계·설정).
-// 접수 목록 탭: 필터 막대 + 접수 목록 표 + (행 선택 시) 상세 패널. 문제 후보·예방 점검은 작업 1-8·1-11, 통계는 작업 1-16, 설정은 작업 1-17.
+// 로그인 전 → 로그인 폼 / 로그인 후 → 탭 6개(접수 목록·문제 후보·예방 점검·통계·문의 로그·설정).
+// 접수 목록 탭: 필터 막대 + 접수 목록 표 + (행 선택 시) 상세 패널. 문제 후보·예방 점검은 작업 1-8·1-11, 통계는 작업 1-16, 문의 로그는 작업 1-18, 설정은 작업 1-17.
 import { useCallback, useEffect, useState } from "react";
 import { clearAdminToken, fetchReports, getAdminToken, REPORT_LIMIT } from "../../api/admin";
 import { fetchProblemClusters } from "../../api/adminDetection";
 import { ApiError } from "../../api/client";
+import ChatLogsPanel from "../../components/admin/ChatLogsPanel";
 import AdminTabs, { type AdminTab } from "../../components/admin/AdminTabs";
 import LoginForm from "../../components/admin/LoginForm";
 import PredictionPanel from "../../components/admin/PredictionPanel";
@@ -25,6 +26,7 @@ const TAB_TITLES: Record<AdminTab, string> = {
   clusters: "문제 후보",
   predictions: "예방 점검",
   stats: "통계",
+  logs: "문의 로그",
   settings: "설정",
 };
 
@@ -183,6 +185,9 @@ function AdminPage() {
         )}
         {tab === "stats" && (
           <StatsPanel token={token} reloadKey={reloadKey} onUnauthorized={logout} />
+        )}
+        {tab === "logs" && (
+          <ChatLogsPanel token={token} reloadKey={reloadKey} onUnauthorized={logout} />
         )}
         {tab === "settings" && (
           <SettingsPanel token={token} reloadKey={reloadKey} onUnauthorized={logout} />

@@ -1,14 +1,15 @@
-// 관리자 화면 탭 5개 — 접수 목록 · 문제 후보(후보 건수 배지) · 예방 점검 (작업 1-8·1-11) · 통계 (작업 1-16) · 설정 (작업 1-17).
+// 관리자 화면 탭 6개 — 접수 목록 · 문제 후보(후보 건수 배지) · 예방 점검 (작업 1-8·1-11) · 통계 (작업 1-16) · 문의 로그 (작업 1-18) · 설정 (작업 1-17).
 // 라우터 없이 React 상태로만 전환한다.
 
 export type AdminTab =
-  "reports" | "clusters" | "predictions" | "stats" | "settings";
+  "reports" | "clusters" | "predictions" | "stats" | "logs" | "settings";
 
 const TABS: { value: AdminTab; label: string }[] = [
   { value: "reports", label: "접수 목록" },
   { value: "clusters", label: "문제 후보" },
   { value: "predictions", label: "예방 점검" },
   { value: "stats", label: "통계" },
+  { value: "logs", label: "문의 로그" },
   { value: "settings", label: "설정" },
 ];
 
