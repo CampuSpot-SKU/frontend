@@ -3,6 +3,8 @@
 // 오류: 401 로그인 만료, 409 규칙 위반(아무것도 저장 안 됨), 422 형식·범위 오류.
 import { apiFetch, ApiError } from "./client";
 import type {
+  AutomationRuleIn,
+  AutomationRuleList,
   BuildingIn,
   BuildingList,
   CategoryIn,
@@ -51,6 +53,11 @@ export const fetchDetection = (token: string) =>
   get<DetectionSettings>(token, "detection");
 export const saveDetection = (token: string, body: DetectionSettings) =>
   put<DetectionSettings>(token, "detection", body);
+
+export const fetchAutomationRules = (token: string) =>
+  get<AutomationRuleList>(token, "automation-rules");
+export const saveAutomationRules = (token: string, items: AutomationRuleIn[]) =>
+  put<AutomationRuleList>(token, "automation-rules", { items });
 
 /** 불러오기·저장 실패를 사용자에게 보여줄 문장으로 (backend는 409에 {detail: "..."}를 줌) */
 export function configErrorText(err: unknown, action: "load" | "save"): string {

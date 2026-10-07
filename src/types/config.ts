@@ -1,7 +1,7 @@
 // 설정 관리 화면에서 쓰는 타입 — backend `app/schemas/config.py`(명세서 5-1 "설정 API 형식")와 필드명을 맞춤.
 // backend 응답 형식이 바뀌면 이 파일만 같이 고치면 됨.
 
-import type { Priority } from "./admin";
+import type { NamedRef, Priority } from "./admin";
 
 export type Level = "고" | "저";
 
@@ -59,6 +59,29 @@ export interface SlaList {
 export interface DetectionSettings {
   threshold_count: number;
   threshold_hours: number;
+}
+
+/** 조건-액션 규칙 한 줄 (작업 1-21, status.md 4장 10/7 한비 제안) — "이 카테고리(·건물)의 신고는 우선순위를 ○○로" */
+export interface AutomationRuleItem {
+  id: string;
+  name: string;
+  category: NamedRef;
+  /** null = 모든 건물 */
+  building: NamedRef | null;
+  resulting_priority: Priority;
+  is_active: boolean;
+}
+export interface AutomationRuleList {
+  items: AutomationRuleItem[];
+}
+/** PUT 요청의 한 줄 — id가 없으면 새로 추가, 목록에서 빠진 규칙은 삭제됨 */
+export interface AutomationRuleIn {
+  id?: string;
+  name: string;
+  category_id: string;
+  building_id: string | null;
+  resulting_priority: Priority;
+  is_active: boolean;
 }
 
 /** 기본 카테고리 — 분류가 안 될 때 쓰는 값이라 끄거나 이름을 바꿀 수 없음 (명세 5-1) */
