@@ -134,15 +134,26 @@ function ChatPage() {
     setWaiting(true);
     // 챗봇 답변 말풍선: 스트리밍 중에는 같은 id의 말풍선 내용을 계속 바꿈
     const replyId = crypto.randomUUID();
-    const showReply = (content: string) =>
+    const showReply = (
+      content: string,
+      extra: Pick<ChatMessage, "sources" | "noSources"> = {},
+    ) =>
       setMessages((prev) =>
         prev.some((m) => m.id === replyId)
-          ? prev.map((m) => (m.id === replyId ? { ...m, content } : m))
-          : [...prev, { id: replyId, role: "assistant", content }],
+          ? prev.map((m) => (m.id === replyId ? { ...m, content, ...extra } : m))
+          : [...prev, { id: replyId, role: "assistant", content, ...extra }],
       );
     try {
-      const result = await sendChatMessage(text, { onDelta: showReply });
-      showReply(result.text);
+      const result = await sendChatMessage(text, { onDelta: (t) => showReply(t) });
+      // 행정문의 답변이면 근거 칩 (근거가 비어 있으면 "공식 확인 필요" 안내)
+      showReply(
+        result.text,
+        result.sources === undefined
+          ? {}
+          : result.sources.length > 0
+            ? { sources: result.sources }
+            : { noSources: true },
+      );
       setChoices(result.choices ?? []);
       setSlots(result.slots ?? null);
       // 접수가 완료되면 조회 창의 "이 브라우저에서 접수한 신고" 목록에 추가 (1-12)

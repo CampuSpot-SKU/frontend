@@ -59,7 +59,8 @@ export async function sendChatMessage(
   }
   if (res.headers.get("content-type")?.includes("text/event-stream")) {
     // 행정문의 답변 = 신고 흐름이 아님 ([안내만 받을래요]를 누른 뒤의 답변도 여기로 옴)
-    return { text: await readInquiryStream(res, onDelta), phase: "none" };
+    const { text, sources } = await readInquiryStream(res, onDelta);
+    return { text, phase: "none", sources };
   }
   return interpretJsonReply((await res.json()) as ChatJsonReply);
 }
@@ -144,11 +145,11 @@ function reportCreatedText(
   );
 }
 
-/** 행정문의 SSE 스트림을 끝까지 읽어서 최종 답변(+근거)을 돌려준다. */
+/** 행정문의 SSE 스트림을 끝까지 읽어서 최종 답변과 근거 목록을 돌려준다. */
 async function readInquiryStream(
   res: Response,
   onDelta?: OnDelta,
-): Promise<string> {
+): Promise<{ text: string; sources: InquirySource[] }> {
   let text = "";
   let sources: InquirySource[] = [];
   const reader = res.body?.getReader();
@@ -182,11 +183,6 @@ async function readInquiryStream(
       if (done) break;
     }
   }
-  if (!text) return chatErrorMessage(null);
-  if (sources.length > 0) {
-    text +=
-      "\n\n근거: " +
-      sources.map((s) => `${s.article_no} ${s.title}`).join(", ");
-  }
-  return text;
+  if (!text) return { text: chatErrorMessage(null), sources: [] };
+  return { text, sources };
 }

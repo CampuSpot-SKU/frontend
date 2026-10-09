@@ -5,6 +5,10 @@ export interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
+  /** 행정문의 답변의 근거 (말풍선 아래 칩으로 표시). 챗봇 말풍선에만 있음 */
+  sources?: InquirySource[];
+  /** true면 근거가 하나도 없는 문의 답변 — "학교 공식 확인이 필요해요" 안내를 표시 */
+  noSources?: boolean;
 }
 
 // ── backend 요청·응답 형식 (명세서 5-1 "사용자용 — 챗봇", backend app/schemas/chat.py와 같음) ──
@@ -105,8 +109,13 @@ export type ChatJsonReply =
 
 /** 행정문의 SSE 마지막 이벤트의 근거 목록 항목 */
 export interface InquirySource {
-  article_no: string;
   title: string;
+  /** 학칙·규정의 조 번호 ("제29조"). 없으면 제목만 표시 */
+  article_no?: string | null;
+  /** 원문 주소. 있으면 칩을 새 탭 링크로 */
+  url?: string | null;
+  /** 기준일 문구 — 규정은 "2025.10.1 기준", 개정 공지는 "2026.1.19 게시". backend가 만든 글자 그대로 표시. 없으면 표시 안 함 */
+  as_of?: string | null;
 }
 
 // ── 화면용 ──
@@ -130,6 +139,8 @@ export interface ChatResult {
   choices?: string[];
   /** 지금까지 챗봇이 대화에서 알아낸 신고 내용 (신고 진행 중 응답일 때만) — 구석의 "접수 내용" 보기용 */
   slots?: SlotsFilled;
+  /** 행정문의 답변의 근거 목록 (문의 답변일 때만, 근거가 없으면 빈 배열) */
+  sources?: InquirySource[];
   /** 이번 응답으로 접수된 신고의 접수번호 (접수 완료 응답일 때만) — 본인 신고 조회(1-12)에서 "내 신고" 목록으로 씀 */
   reportNo?: number;
 }
