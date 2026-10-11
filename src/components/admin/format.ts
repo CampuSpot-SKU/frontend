@@ -2,7 +2,9 @@
 import type { AdminReportItem, SlaStatus } from "../../types/admin";
 
 /** 건물 이름이 있으면 "건물 층 세부", 없으면 사용자가 입력한 원문 위치 */
-export function locationText(r: AdminReportItem): string {
+export function locationText(
+  r: Pick<AdminReportItem, "building" | "floor" | "detail" | "location_raw">,
+): string {
   if (r.building) {
     const floor = r.floor
       ? r.floor.startsWith("B")

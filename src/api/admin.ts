@@ -8,6 +8,7 @@ import type {
   AdminReportList,
   ReportFilters,
   ReportStatus,
+  SimilarReportList,
   TokenOut,
 } from "../types/admin";
 
@@ -100,5 +101,15 @@ export async function changeReportStatus(
     method: "PATCH",
     headers: authHeaders(token),
     body: JSON.stringify({ to_status: toStatus, memo: memo.trim() || null }),
+  });
+}
+
+/** GET /admin/reports/{id}/similar — 비슷한 과거 해결 건과 처리 메모 (1-8c). */
+export async function fetchSimilarReports(
+  token: string,
+  id: string,
+): Promise<SimilarReportList> {
+  return apiFetch<SimilarReportList>(`/admin/reports/${id}/similar`, {
+    headers: authHeaders(token),
   });
 }

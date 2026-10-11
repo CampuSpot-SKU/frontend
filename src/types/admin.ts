@@ -68,6 +68,32 @@ export interface AdminReportDetail extends AdminReportItem {
   status_history: StatusHistoryItem[];
 }
 
+/** 유사 사례 한 건 — 같은 카테고리의 해결·종료된 과거 신고 (1-8c, GET /admin/reports/{id}/similar) */
+export interface SimilarReport {
+  id: string;
+  display_no: number;
+  category: NamedRef;
+  building: NamedRef | null;
+  floor: string | null;
+  detail: string | null;
+  location_raw: string | null;
+  description: string;
+  status: ReportStatus;
+  created_at: string;
+  /** 마지막으로 '해결'된 시각 */
+  resolved_at: string | null;
+  /** 그때 남긴 처리 메모 */
+  resolution_memo: string | null;
+  /** 설명 임베딩 코사인 거리 — 0에 가까울수록 비슷 */
+  distance: number;
+}
+
+export interface SimilarReportList {
+  /** false = 이 신고의 임베딩이 아직 없음(접수 다음 날 탐지 배치가 채움) */
+  embedding_ready: boolean;
+  items: SimilarReport[];
+}
+
 // ── 탐지·예측 (작업 1-8 문제 후보 화면, 1-11 예방 점검 화면 — 명세서 3-3, 5-1 관리자용) ──
 
 export type ClusterStatus = "후보" | "승격" | "기각";

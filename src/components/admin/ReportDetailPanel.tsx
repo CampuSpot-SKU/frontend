@@ -2,6 +2,7 @@
 // 상태는 정상 경로(접수→배정→처리중→해결→종료)의 다음 단계 버튼을 보여주고,
 // 해결 상태에서만 보조 버튼 [처리중으로 되돌리기(재오픈)]를 함께 보여준다 (1-7b, 명세 4-2·10-2).
 // 허용되지 않는 전이는 backend가 409로 거절하므로 그 메시지를 그대로 보여준다 (규칙은 1-7, 명세 10-2).
+// 아래쪽에 비슷한 과거 사례(1-8c)와 처리 이력을 보여준다. 상태가 같은 이력은 SLA 우선순위 자동 상향 같은 시스템 조치(1-13).
 import { useEffect, useState } from "react";
 import {
   changeReportStatus,
@@ -11,6 +12,7 @@ import { ApiError } from "../../api/client";
 import { PriorityBadge, StatusBadge } from "../report/StatusBadge";
 import type { AdminReportDetail, ReportStatus } from "../../types/admin";
 import { formatDateTime, locationText, slaRemaining } from "./format";
+import SimilarCases from "./SimilarCases";
 import SlaBadge from "./SlaBadge";
 
 const NEXT_STATUS: Record<ReportStatus, ReportStatus | null> = {
@@ -258,13 +260,19 @@ export default function ReportDetailPanel({
               )}
             </section>
 
+            <SimilarCases token={token} reportId={detail.id} onUnauthorized={onUnauthorized} />
+
             <section>
               <h3 className="mb-2 font-semibold text-gray-800">처리 이력</h3>
               <ol className="space-y-2 border-l-2 border-gray-200 pl-3">
                 {[...detail.status_history].reverse().map((h, i) => (
                   <li key={`${h.changed_at}-${i}`}>
                     <div className="font-medium text-gray-800">
-                      {h.from_status ? `${h.from_status} → ${h.to_status}` : `${h.to_status} (최초 접수)`}
+                      {!h.from_status
+                        ? `${h.to_status} (최초 접수)`
+                        : h.from_status === h.to_status
+                          ? `${h.to_status} (자동 조치)`
+                          : `${h.from_status} → ${h.to_status}`}
                     </div>
                     <div className="text-xs text-gray-500">
                       {formatDateTime(h.changed_at)} · {h.changed_by?.name ?? "시스템"}
