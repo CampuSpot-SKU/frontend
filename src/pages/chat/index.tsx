@@ -61,11 +61,14 @@ function ChatPage() {
   const [photoStatus, setPhotoStatus] = useState<PhotoStatus>("idle");
   const [photoError, setPhotoError] = useState<string | null>(null);
   const photoUrlRef = useRef<string | null>(null); // 정리(revoke)용 최신 값
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLElement>(null);
 
-  // 새 메시지가 생기면 맨 아래로 스크롤
+  // 새 메시지가 생기면 메시지 목록(main)만 맨 아래로 스크롤.
+  // scrollIntoView는 쓰지 않는다 — 부모(문서 전체)까지 같이 스크롤시켜서, 메시지가 쌓일수록 화면 전체가
+  // 위로 튀었다가 내려오는 버그가 있었다. 목록 칸의 scrollTop만 바꾸면 다른 곳은 움직이지 않는다.
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    const el = listRef.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, [messages, waiting, choices]);
 
   // 페이지를 닫을 때 미리보기 주소 정리 (메모리)
@@ -171,7 +174,7 @@ function ChatPage() {
   };
 
   return (
-    <div className="flex h-dvh flex-col bg-gray-50">
+    <div className="flex h-dvh flex-col overflow-hidden bg-gray-50">
       <header className="shrink-0 border-b border-gray-200 bg-white">
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-4 py-3">
           <div>
@@ -190,7 +193,11 @@ function ChatPage() {
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto">
+      {/* relative: 안의 sr-only(절대 위치) 글자가 목록 칸 밖으로 새어 문서 스크롤 범위를 늘리지 않게 가둔다 */}
+      <main
+        ref={listRef}
+        className="relative flex-1 overflow-y-auto overscroll-contain"
+      >
         <div className="mx-auto flex max-w-2xl flex-col gap-3 px-4 py-4">
           {messages.map((m) => (
             <MessageBubble key={m.id} message={m} />
@@ -227,7 +234,6 @@ function ChatPage() {
               ))}
             </div>
           )}
-          <div ref={bottomRef} />
         </div>
       </main>
 
