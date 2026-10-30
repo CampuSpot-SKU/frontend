@@ -177,14 +177,15 @@ function ChatPage() {
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-gray-50">
       <header className="shrink-0 border-b border-gray-200 bg-white">
-        <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-4 py-3">
+        <div className="mx-auto flex max-w-2xl flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 py-3">
           <div>
             <h1 className="text-lg font-bold text-gray-900">CampuSpot</h1>
             <p className="text-xs text-gray-500">
               캠퍼스 불편 신고 · 학교 행정 문의
             </p>
           </div>
-          <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
+          {/* 좁은 화면(휴대폰)에선 제목 아래 한 줄을 통째로 써서 "환영합니다 OOO님!"이 잘리지 않게 (1-24) */}
+          <div className="flex w-full min-w-0 items-center justify-end gap-2 sm:w-auto">
             <AuthBar />
             <button
               type="button"
