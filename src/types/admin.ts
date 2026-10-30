@@ -94,6 +94,24 @@ export interface SimilarReportList {
   items: SimilarReport[];
 }
 
+/** 신고 대화의 한 줄 (1-25) — 글과 시각만 */
+export interface ConversationMessage {
+  /** user = 학생, assistant = 챗봇 */
+  role: "user" | "assistant";
+  content: string;
+  created_at: string;
+}
+
+/** GET /admin/reports/{id}/conversation — 신고가 접수되기까지 학생·챗봇이 나눈 대화, 오래된 순 (1-25) */
+export interface ReportConversation {
+  report_id: string;
+  display_no: number;
+  /** 대화가 없으면(데모 데이터 신고 등) 빈 목록 */
+  messages: ConversationMessage[];
+  /** true = 80개를 넘어 최근 쪽만 남김 */
+  truncated: boolean;
+}
+
 // ── 탐지·예측 (작업 1-8 문제 후보 화면, 1-11 예방 점검 화면 — 명세서 3-3, 5-1 관리자용) ──
 
 export type ClusterStatus = "후보" | "승격" | "기각";

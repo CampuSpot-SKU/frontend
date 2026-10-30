@@ -6,6 +6,7 @@ import { apiFetch } from "./client";
 import type {
   AdminReportDetail,
   AdminReportList,
+  ReportConversation,
   ReportFilters,
   ReportStatus,
   SimilarReportList,
@@ -110,6 +111,16 @@ export async function fetchSimilarReports(
   id: string,
 ): Promise<SimilarReportList> {
   return apiFetch<SimilarReportList>(`/admin/reports/${id}/similar`, {
+    headers: authHeaders(token),
+  });
+}
+
+/** GET /admin/reports/{id}/conversation — 신고가 접수되기까지의 대화 (1-25, 조회만). */
+export async function fetchReportConversation(
+  token: string,
+  id: string,
+): Promise<ReportConversation> {
+  return apiFetch<ReportConversation>(`/admin/reports/${id}/conversation`, {
     headers: authHeaders(token),
   });
 }

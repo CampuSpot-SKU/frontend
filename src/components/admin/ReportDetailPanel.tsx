@@ -12,6 +12,7 @@ import { ApiError } from "../../api/client";
 import { PriorityBadge, StatusBadge } from "../report/StatusBadge";
 import type { AdminReportDetail, ReportStatus } from "../../types/admin";
 import { formatDateTime, locationText, slaRemaining } from "./format";
+import ReportConversation from "./ReportConversation";
 import SimilarCases from "./SimilarCases";
 import SlaBadge from "./SlaBadge";
 
@@ -209,6 +210,8 @@ export default function ReportDetailPanel({
               </p>
               {detail.photo_url && <AttachedPhoto url={detail.photo_url} />}
             </section>
+
+            <ReportConversation token={token} reportId={detail.id} onUnauthorized={onUnauthorized} />
 
             <section>
               <h3 className="mb-2 font-semibold text-gray-800">상태 변경</h3>
