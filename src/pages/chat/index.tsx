@@ -18,7 +18,7 @@ import {
 } from "../../api/photo";
 import { resizeImage } from "../../lib/resizeImage";
 import { rememberMyReport } from "../../api/reports";
-import { getAdminToken } from "../../api/admin";
+import AdminLinks from "../../components/AdminLinks";
 import AuthBar from "../../components/AuthBar";
 import ChatInput from "../../components/ChatInput";
 import type { PhotoStatus } from "../../components/PhotoAttach";
@@ -188,13 +188,7 @@ function ChatPage() {
           {/* 좁은 화면(휴대폰)에선 제목 아래 한 줄을 통째로 써서 "환영합니다 OOO님!"이 잘리지 않게 (1-24) */}
           <div className="flex w-full min-w-0 flex-wrap items-center justify-end gap-x-2 gap-y-1 sm:w-auto">
             <AuthBar />
-            {/* 관리자 로그인 화면(/admin, admins 테이블)으로 — 이미 관리자로 로그인한 탭이면 바로 관리자 페이지 (1-24) */}
-            <a
-              href="/admin"
-              className="shrink-0 rounded-full px-1.5 py-1.5 text-xs font-medium text-gray-500 hover:bg-gray-100 sm:px-2"
-            >
-              {getAdminToken() ? "관리자 페이지" : "관리자 로그인"}
-            </a>
+            <AdminLinks />
             <button
               type="button"
               onClick={() => setStatusOpen(true)}
