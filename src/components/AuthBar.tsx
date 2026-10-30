@@ -16,6 +16,7 @@ type Mode = "login" | "signup";
  * - 로그인 전: [로그인] [회원가입] 버튼 → 누르면 입력 창
  * - 로그인 후: 버튼 대신 "환영합니다 OOO님!" + [로그아웃]
  * 로그인은 선택 사항이라 챗봇·신고 흐름은 이 상태와 상관없이 그대로 동작한다.
+ * 로그인 창은 하나 — 관리자 계정으로 로그인하면 관리자 페이지(/admin)로 넘어간다 (10/30).
  */
 function AuthBar() {
   const [user, setUser] = useState<UserSession | null>(null);
@@ -124,15 +125,20 @@ function AuthDialog({ mode, onSwitch, onClose, onDone }: DialogProps) {
     setBusy(true);
     setError(null);
     try {
-      const s = isSignup
-        ? await signup(loginId.trim(), password, name.trim())
-        : await login(loginId.trim(), password);
-      onDone(s);
+      if (isSignup) {
+        onDone(await signup(loginId.trim(), password, name.trim()));
+      } else {
+        const result = await login(loginId.trim(), password);
+        if (result.kind === "admin") {
+          window.location.href = "/admin"; // 관리자 계정이면 관리자 페이지로
+          return; // 페이지가 넘어가는 동안 버튼은 "처리 중…" 그대로
+        }
+        onDone(result.session);
+      }
     } catch (err) {
       setError(authErrorMessage(err));
-    } finally {
-      setBusy(false);
     }
+    setBusy(false);
   };
 
   const input = "w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none";

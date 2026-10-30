@@ -18,7 +18,6 @@ import {
 } from "../../api/photo";
 import { resizeImage } from "../../lib/resizeImage";
 import { rememberMyReport } from "../../api/reports";
-import AdminLinks from "../../components/AdminLinks";
 import AuthBar from "../../components/AuthBar";
 import ChatInput from "../../components/ChatInput";
 import type { PhotoStatus } from "../../components/PhotoAttach";
@@ -188,7 +187,6 @@ function ChatPage() {
           {/* 좁은 화면(휴대폰)에선 제목 아래 한 줄을 통째로 써서 "환영합니다 OOO님!"이 잘리지 않게 (1-24) */}
           <div className="flex w-full min-w-0 flex-wrap items-center justify-end gap-x-2 gap-y-1 sm:w-auto">
             <AuthBar />
-            <AdminLinks />
             <button
               type="button"
               onClick={() => setStatusOpen(true)}
