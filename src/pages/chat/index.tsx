@@ -18,6 +18,7 @@ import {
 } from "../../api/photo";
 import { resizeImage } from "../../lib/resizeImage";
 import { rememberMyReport } from "../../api/reports";
+import AuthBar from "../../components/AuthBar";
 import ChatInput from "../../components/ChatInput";
 import type { PhotoStatus } from "../../components/PhotoAttach";
 import MessageBubble from "../../components/MessageBubble";
@@ -183,13 +184,16 @@ function ChatPage() {
               캠퍼스 불편 신고 · 학교 행정 문의
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => setStatusOpen(true)}
-            className="shrink-0 rounded-full border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100"
-          >
-            내 신고 조회
-          </button>
+          <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
+            <AuthBar />
+            <button
+              type="button"
+              onClick={() => setStatusOpen(true)}
+              className="shrink-0 rounded-full border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100"
+            >
+              내 신고 조회
+            </button>
+          </div>
         </div>
       </header>
 
