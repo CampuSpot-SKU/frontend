@@ -44,6 +44,15 @@ export function getSessionId(): string | null {
   }
 }
 
+/** 지금 session_id를 잊음 — 다음 메시지를 보낼 때 새 세션이 만들어짐 (로그아웃 때 새 세션 만들기에 실패한 경우, 1-29) */
+export function clearSessionId(): void {
+  try {
+    localStorage.removeItem(SESSION_KEY);
+  } catch {
+    // 저장소를 못 쓰는 브라우저 — 무시
+  }
+}
+
 export function saveSessionId(sessionId: string): void {
   try {
     localStorage.setItem(SESSION_KEY, sessionId);

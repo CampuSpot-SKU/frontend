@@ -14,6 +14,10 @@ type Mode = "login" | "signup";
 interface Props {
   /** 로그인 상태가 바뀔 때(새로고침 뒤 복원·로그인·가입·로그아웃) — 챗봇 화면이 대화를 계정에 연결(claim)하는 데 씀 (1-27) */
   onUserChange?: (user: UserSession | null) => void;
+  /** [로그아웃]을 눌렀을 때만 (처음 들어온 비로그인·토큰 만료는 아님) — 챗봇 화면이 새 대화로 바꿈 (1-29) */
+  onLogout?: () => void;
+  /** 챗봇이 답하는 중에는 로그아웃을 잠시 막음 (답이 새 대화 화면에 섞이지 않게) */
+  logoutDisabled?: boolean;
 }
 
 /**
@@ -24,7 +28,7 @@ interface Props {
  * 로그인 창은 하나 — 관리자 계정으로 로그인하면 관리자 페이지(/admin)로 넘어간다 (10/30).
  * 로그인한 동안의 대화는 계정에 저장된다(1-27) — 로그인 창에 고지.
  */
-function AuthBar({ onUserChange }: Props) {
+function AuthBar({ onUserChange, onLogout, logoutDisabled }: Props) {
   const [user, setUserState] = useState<UserSession | null>(null);
   const [mode, setMode] = useState<Mode | null>(null);
   const onUserChangeRef = useRef(onUserChange);
@@ -60,8 +64,10 @@ function AuthBar({ onUserChange }: Props) {
           onClick={() => {
             clearUserToken();
             setUser(null);
+            onLogout?.();
           }}
-          className="shrink-0 rounded-full px-2 py-1.5 text-xs text-gray-500 hover:bg-gray-100"
+          disabled={logoutDisabled}
+          className="shrink-0 rounded-full px-2 py-1.5 text-xs text-gray-500 hover:bg-gray-100 disabled:opacity-50"
         >
           로그아웃
         </button>

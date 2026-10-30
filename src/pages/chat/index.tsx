@@ -12,11 +12,12 @@
 // 새로고침 뒤 로그인 복원·새 대화 직후·답변을 받은 뒤 지금 세션을 계정에 연결(claim).
 // 이전 대화 (1-28): 로그인하면 왼쪽 사이드바(휴대폰은 ☰ 서랍)에 내 대화 목록 → 고르면 가운데 칸에 읽기 전용
 // (입력창 대신 "지난 대화예요" + [지금 대화로 돌아가기]·[새 대화]). 비로그인이면 사이드바 없이 지금 화면 그대로.
+// 로그아웃하면 새 대화로 (1-29): 로그아웃 뒤 이어 쓴 말이 방금 로그아웃한 계정의 대화에 쌓이지 않게(공용 PC 대비).
 import { useEffect, useRef, useState } from "react";
 import { chatErrorMessage, sendChatMessage } from "../../api/chat";
 import { claimSession, startNewConversation } from "../../api/chatSession";
 import { fetchMySession, historyErrorMessage } from "../../api/chatHistory";
-import { getSessionId } from "../../api/client";
+import { clearSessionId, getSessionId } from "../../api/client";
 import HistorySidebar from "../../components/history/HistorySidebar";
 import type { MySessionDetail, MySessionItem } from "../../types/history";
 import type { UserSession } from "../../api/userAuth";
@@ -196,24 +197,45 @@ function ChatPage() {
     }
   };
 
+  /** 화면을 인사말 상태로 비움 (새 대화·로그아웃 공용) */
+  const resetScreen = (nextNotice: string | null) => {
+    setMessages([WELCOME]);
+    setChoices([]);
+    setSlots(null);
+    replacePhotoPreview(null); // 이전 세션의 대기 사진은 서버가 정리함
+    photoFileRef.current = null;
+    setPhotoUnseen(false);
+    setPhotoError(null);
+    setNotice(nextNotice);
+    setViewing(null);
+    setDrawerOpen(false);
+  };
+
+  /** [로그아웃] — 새 세션으로 바꿔 이후 대화가 로그아웃한 계정에 남지 않게 (1-29).
+   *  AuthBar가 토큰을 먼저 지우므로 새 세션은 계정에 연결(claim)되지 않음 */
+  const handleLogout = async () => {
+    setStartingNew(true);
+    const done = "로그아웃했어요. 새 대화로 시작해요.";
+    try {
+      await startNewConversation();
+      resetScreen(done);
+    } catch {
+      // 새 세션을 못 만들었으면 지금 session_id를 잊어서, 다음 메시지 때 새 세션이 만들어지게 함
+      clearSessionId();
+      resetScreen(done);
+    }
+    setStartingNew(false);
+  };
+
   /** [새 대화] — 화면을 인사말 상태로 비우고 새 세션으로 바꾼다 (이전 대화는 서버에 그대로) */
   const handleNewConversation = async () => {
     if (waiting || startingNew) return;
     setStartingNew(true);
     try {
       await startNewConversation();
-      setMessages([WELCOME]);
-      setChoices([]);
-      setSlots(null);
-      replacePhotoPreview(null); // 이전 세션의 대기 사진은 서버가 정리함
-      photoFileRef.current = null;
-      setPhotoUnseen(false);
-      setPhotoError(null);
-      setNotice(
+      resetScreen(
         loggedIn ? null : "로그인하지 않으면 이전 대화를 다시 볼 수 없어요.",
       );
-      setViewing(null);
-      setDrawerOpen(false);
       if (loggedIn) refreshHistory();
     } catch (err) {
       setNotice(chatErrorMessage(err)); // 새 세션을 못 만들었으면 지금 대화를 그대로 이어감
@@ -329,7 +351,11 @@ function ChatPage() {
             </div>
             {/* 좁은 화면(휴대폰)에선 제목 아래 한 줄을 통째로 써서 "환영합니다 OOO님!"이 잘리지 않게 (1-24) */}
             <div className="flex w-full min-w-0 flex-wrap items-center justify-end gap-x-2 gap-y-1 sm:w-auto">
-              <AuthBar onUserChange={handleUserChange} />
+              <AuthBar
+                onUserChange={handleUserChange}
+                onLogout={() => void handleLogout()}
+                logoutDisabled={waiting || startingNew}
+              />
               {(messages.length > 1 || viewing) && (
                 <button
                   type="button"
