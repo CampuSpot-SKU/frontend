@@ -149,9 +149,10 @@ function reportCreatedText(
 async function readInquiryStream(
   res: Response,
   onDelta?: OnDelta,
-): Promise<{ text: string; sources: InquirySource[] }> {
+): Promise<{ text: string; sources?: InquirySource[] }> {
   let text = "";
-  let sources: InquirySource[] = [];
+  // done 이벤트에 sources가 없으면(인사·잡담·거절) undefined 그대로 — 근거 칩·"공식 확인 필요" 배지를 붙이지 않는다
+  let sources: InquirySource[] | undefined;
   const reader = res.body?.getReader();
   if (reader) {
     const decoder = new TextDecoder();
@@ -178,11 +179,11 @@ async function readInquiryStream(
           text += payload.delta;
           onDelta?.(text);
         }
-        if (payload.done) sources = payload.sources ?? [];
+        if (payload.done) sources = payload.sources;
       }
       if (done) break;
     }
   }
-  if (!text) return { text: chatErrorMessage(null), sources: [] };
+  if (!text) return { text: chatErrorMessage(null) };
   return { text, sources };
 }
