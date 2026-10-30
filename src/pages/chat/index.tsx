@@ -9,10 +9,16 @@
 //   칩에 없는 답은 입력창에 자유롭게 쓰면 된다.
 //
 // 새 대화·계정 연결 (1-27): 머리글 [새 대화]로 대화방(session_id)을 나눈다. 로그인한 학생이면 로그인 직후·
-// 새로고침 뒤 로그인 복원·새 대화 직후·답변을 받은 뒤 지금 세션을 계정에 연결(claim) → [이전 대화]에서 다시 봄.
+// 새로고침 뒤 로그인 복원·새 대화 직후·답변을 받은 뒤 지금 세션을 계정에 연결(claim).
+// 이전 대화 (1-28): 로그인하면 왼쪽 사이드바(휴대폰은 ☰ 서랍)에 내 대화 목록 → 고르면 가운데 칸에 읽기 전용
+// (입력창 대신 "지난 대화예요" + [지금 대화로 돌아가기]·[새 대화]). 비로그인이면 사이드바 없이 지금 화면 그대로.
 import { useEffect, useRef, useState } from "react";
 import { chatErrorMessage, sendChatMessage } from "../../api/chat";
 import { claimSession, startNewConversation } from "../../api/chatSession";
+import { fetchMySession, historyErrorMessage } from "../../api/chatHistory";
+import { getSessionId } from "../../api/client";
+import HistorySidebar from "../../components/history/HistorySidebar";
+import type { MySessionDetail, MySessionItem } from "../../types/history";
 import type { UserSession } from "../../api/userAuth";
 import {
   deletePhoto,
@@ -78,6 +84,16 @@ function ChatPage() {
   const [startingNew, setStartingNew] = useState(false); // [새 대화] 처리 중
   // [새 대화] 직후 목록 위에 보여줄 안내 한 줄 (다음 메시지를 보내면 사라짐)
   const [notice, setNotice] = useState<string | null>(null);
+  // 이전 대화 사이드바 (1-28)
+  const [historyKey, setHistoryKey] = useState(0); // 바뀌면 목록 새로 불러옴
+  const [drawerOpen, setDrawerOpen] = useState(false); // 휴대폰 서랍
+  // 가운데 칸에 읽기 전용으로 보고 있는 지난 대화 (null = 지금 대화)
+  const [viewing, setViewing] = useState<{
+    item: MySessionItem;
+    detail: MySessionDetail | null;
+    error: string | null;
+  } | null>(null);
+  const refreshHistory = () => setHistoryKey((k) => k + 1);
 
   // 새 메시지가 생기면 메시지 목록(main)만 맨 아래로 스크롤.
   // scrollIntoView는 쓰지 않는다 — 부모(문서 전체)까지 같이 스크롤시켜서, 메시지가 쌓일수록 화면 전체가
@@ -147,7 +163,37 @@ function ChatPage() {
 
   const handleUserChange = (u: UserSession | null) => {
     setLoggedIn(u !== null);
-    if (u) void claimSession(); // 로그인 직후·새로고침 뒤 복원 — 지금 대화를 내 계정에 연결
+    if (u) {
+      // 로그인 직후·새로고침 뒤 복원 — 지금 대화를 내 계정에 연결한 뒤 사이드바 목록 갱신
+      void claimSession().then(refreshHistory);
+    } else {
+      setViewing(null);
+      setDrawerOpen(false);
+    }
+  };
+
+  /** 사이드바에서 대화를 고름 — 지금 대화면 그대로, 지난 대화면 읽기 전용으로 불러옴 */
+  const handleSelectHistory = async (item: MySessionItem) => {
+    setDrawerOpen(false);
+    if (item.session_id === getSessionId()) {
+      setViewing(null);
+      return;
+    }
+    setViewing({ item, detail: null, error: null });
+    try {
+      const detail = await fetchMySession(item.session_id);
+      setViewing((v) =>
+        v?.item.session_id === item.session_id
+          ? { item, detail, error: null }
+          : v,
+      );
+    } catch (err) {
+      setViewing((v) =>
+        v?.item.session_id === item.session_id
+          ? { item, detail: null, error: historyErrorMessage(err) }
+          : v,
+      );
+    }
   };
 
   /** [새 대화] — 화면을 인사말 상태로 비우고 새 세션으로 바꾼다 (이전 대화는 서버에 그대로) */
@@ -163,7 +209,12 @@ function ChatPage() {
       photoFileRef.current = null;
       setPhotoUnseen(false);
       setPhotoError(null);
-      setNotice(loggedIn ? null : "로그인하지 않으면 이전 대화를 다시 볼 수 없어요.");
+      setNotice(
+        loggedIn ? null : "로그인하지 않으면 이전 대화를 다시 볼 수 없어요.",
+      );
+      setViewing(null);
+      setDrawerOpen(false);
+      if (loggedIn) refreshHistory();
     } catch (err) {
       setNotice(chatErrorMessage(err)); // 새 세션을 못 만들었으면 지금 대화를 그대로 이어감
     }
@@ -199,7 +250,9 @@ function ChatPage() {
     ) =>
       setMessages((prev) =>
         prev.some((m) => m.id === replyId)
-          ? prev.map((m) => (m.id === replyId ? { ...m, content, ...extra } : m))
+          ? prev.map((m) =>
+              m.id === replyId ? { ...m, content, ...extra } : m,
+            )
           : [...prev, { id: replyId, role: "assistant", content, ...extra }],
       );
     try {
@@ -219,7 +272,8 @@ function ChatPage() {
       setChoices(result.choices ?? []);
       setSlots(result.slots ?? null);
       // 첫 메시지에서 세션이 새로 만들어졌을 수 있음 → 로그인 상태면 연결 (이미 연결한 세션이면 호출 안 함)
-      void claimSession();
+      // 그 뒤 사이드바 목록 갱신(새 대화가 맨 위에 생기고 메시지 수가 바뀜)
+      if (loggedIn) void claimSession().then(refreshHistory);
       // 접수가 완료되면 조회 창의 "이 브라우저에서 접수한 신고" 목록에 추가 (1-12)
       if (result.reportNo !== undefined) {
         rememberMyReport(result.reportNo);
@@ -239,113 +293,208 @@ function ChatPage() {
   };
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-gray-50">
-      <header className="shrink-0 border-b border-gray-200 bg-white">
-        <div className="mx-auto flex max-w-2xl flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 py-3">
-          <div>
-            <h1 className="text-lg font-bold text-gray-900">CampuSpot</h1>
-            <p className="text-xs text-gray-500">
-              캠퍼스 불편 신고 · 학교 행정 문의
-            </p>
-          </div>
-          {/* 좁은 화면(휴대폰)에선 제목 아래 한 줄을 통째로 써서 "환영합니다 OOO님!"이 잘리지 않게 (1-24) */}
-          <div className="flex w-full min-w-0 flex-wrap items-center justify-end gap-x-2 gap-y-1 sm:w-auto">
-            <AuthBar onUserChange={handleUserChange} />
-            {messages.length > 1 && (
+    <div className="flex h-dvh overflow-hidden bg-gray-50">
+      {loggedIn && (
+        <HistorySidebar
+          open={drawerOpen}
+          onClose={() => setDrawerOpen(false)}
+          refreshKey={historyKey}
+          currentSessionId={getSessionId()}
+          selectedId={viewing?.item.session_id ?? null}
+          onSelect={(it) => void handleSelectHistory(it)}
+          onNewConversation={() => void handleNewConversation()}
+          newDisabled={waiting || startingNew}
+        />
+      )}
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="shrink-0 border-b border-gray-200 bg-white">
+          <div className="mx-auto flex max-w-2xl flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 py-3">
+            <div className="flex items-center gap-2">
+              {loggedIn && (
+                <button
+                  type="button"
+                  onClick={() => setDrawerOpen(true)}
+                  aria-label="이전 대화 열기"
+                  className="-ml-1 rounded-lg px-2 py-1 text-lg text-gray-700 hover:bg-gray-100 md:hidden"
+                >
+                  ☰
+                </button>
+              )}
+              <div>
+                <h1 className="text-lg font-bold text-gray-900">CampuSpot</h1>
+                <p className="text-xs text-gray-500">
+                  캠퍼스 불편 신고 · 학교 행정 문의
+                </p>
+              </div>
+            </div>
+            {/* 좁은 화면(휴대폰)에선 제목 아래 한 줄을 통째로 써서 "환영합니다 OOO님!"이 잘리지 않게 (1-24) */}
+            <div className="flex w-full min-w-0 flex-wrap items-center justify-end gap-x-2 gap-y-1 sm:w-auto">
+              <AuthBar onUserChange={handleUserChange} />
+              {(messages.length > 1 || viewing) && (
+                <button
+                  type="button"
+                  onClick={() => void handleNewConversation()}
+                  disabled={waiting || startingNew}
+                  className={`${loggedIn ? "md:hidden " : ""}shrink-0 rounded-full border border-gray-300 bg-white px-2.5 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50 sm:px-3`}
+                >
+                  새 대화
+                </button>
+              )}
               <button
                 type="button"
-                onClick={() => void handleNewConversation()}
-                disabled={waiting || startingNew}
-                className="shrink-0 rounded-full border border-gray-300 bg-white px-2.5 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50 sm:px-3"
+                onClick={() => setStatusOpen(true)}
+                className="shrink-0 rounded-full border border-gray-300 bg-white px-2.5 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 sm:px-3"
               >
-                새 대화
+                내 신고 조회
               </button>
-            )}
-            <button
-              type="button"
-              onClick={() => setStatusOpen(true)}
-              className="shrink-0 rounded-full border border-gray-300 bg-white px-2.5 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 sm:px-3"
-            >
-              내 신고 조회
-            </button>
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
 
-      {/* relative: 안의 sr-only(절대 위치) 글자가 목록 칸 밖으로 새어 문서 스크롤 범위를 늘리지 않게 가둔다 */}
-      <main
-        ref={listRef}
-        className="relative flex-1 overflow-y-auto overscroll-contain"
-      >
-        <div className="mx-auto flex max-w-2xl flex-col gap-3 px-4 py-4">
-          {notice && (
-            <p className="text-center text-xs text-gray-500" role="status">
-              {notice}
-            </p>
-          )}
-          {messages.map((m) => (
-            <MessageBubble key={m.id} message={m} />
-          ))}
-          {messages.length === 1 && !waiting && (
-            <div className="flex flex-wrap gap-2 pl-1" aria-label="예시 질문">
-              {SUGGESTIONS.map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => handleSend(s)}
-                  className={chipClass}
+        {/* relative: 안의 sr-only(절대 위치) 글자가 목록 칸 밖으로 새어 문서 스크롤 범위를 늘리지 않게 가둔다 */}
+        <main
+          ref={listRef}
+          className="relative flex-1 overflow-y-auto overscroll-contain"
+        >
+          <div className="mx-auto flex max-w-2xl flex-col gap-3 px-4 py-4">
+            {viewing ? (
+              <>
+                <div
+                  className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800"
+                  role="status"
                 >
-                  {s}
-                </button>
-              ))}
-            </div>
-          )}
-          {/* 답변 말풍선이 아직 안 생겼을 때만 (스트리밍이 시작되면 숨김) */}
-          {waiting && messages[messages.length - 1]?.role === "user" && (
-            <TypingIndicator label={analyzing ? "사진을 분석 중이에요…" : undefined} />
-          )}
-          {!waiting && choices.length > 0 && (
-            <div className="flex flex-wrap gap-2 pl-1" aria-label="추천 답변">
-              {choices.map((c) => (
+                  지난 대화예요. 여기서는 이어서 대화할 수 없어요.
+                  {viewing.detail?.truncated && " 오래된 대화는 일부만 보여요."}
+                </div>
+                {!viewing.detail && !viewing.error && (
+                  <p className="text-center text-xs text-gray-400">
+                    불러오는 중…
+                  </p>
+                )}
+                {viewing.error && (
+                  <p className="text-center text-sm text-red-600" role="alert">
+                    {viewing.error}
+                  </p>
+                )}
+                {viewing.detail?.messages.map((m, i) => (
+                  <MessageBubble
+                    key={`${viewing.item.session_id}-${i}`}
+                    // sources가 있으면 근거 칩, 없으면(잡담·신고·학생 말) 배지 없이 글만
+                    message={{
+                      id: String(i),
+                      role: m.role,
+                      content: m.content,
+                      sources: m.sources,
+                    }}
+                  />
+                ))}
+              </>
+            ) : (
+              <>
+                {notice && (
+                  <p
+                    className="text-center text-xs text-gray-500"
+                    role="status"
+                  >
+                    {notice}
+                  </p>
+                )}
+                {messages.map((m) => (
+                  <MessageBubble key={m.id} message={m} />
+                ))}
+                {messages.length === 1 && !waiting && (
+                  <div
+                    className="flex flex-wrap gap-2 pl-1"
+                    aria-label="예시 질문"
+                  >
+                    {SUGGESTIONS.map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => handleSend(s)}
+                        className={chipClass}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {/* 답변 말풍선이 아직 안 생겼을 때만 (스트리밍이 시작되면 숨김) */}
+                {waiting && messages[messages.length - 1]?.role === "user" && (
+                  <TypingIndicator
+                    label={analyzing ? "사진을 분석 중이에요…" : undefined}
+                  />
+                )}
+                {!waiting && choices.length > 0 && (
+                  <div
+                    className="flex flex-wrap gap-2 pl-1"
+                    aria-label="추천 답변"
+                  >
+                    {choices.map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => handleSend(c)}
+                        className={chipClass}
+                      >
+                        {c}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </main>
+
+        <SlotsCorner slots={slots} />
+
+        {statusOpen && (
+          <ReportStatusDialog onClose={() => setStatusOpen(false)} />
+        )}
+
+        <footer className="shrink-0 border-t border-gray-200 bg-white">
+          <div className="mx-auto max-w-2xl px-4 py-3">
+            {viewing ? (
+              <div className="flex flex-wrap items-center justify-center gap-2 py-1">
                 <button
-                  key={c}
                   type="button"
-                  onClick={() => handleSend(c)}
-                  className={chipClass}
+                  onClick={() => setViewing(null)}
+                  className="rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
                 >
-                  {c}
+                  지금 대화로 돌아가기
                 </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </main>
-
-      <SlotsCorner slots={slots} />
-
-      {statusOpen && (
-        <ReportStatusDialog onClose={() => setStatusOpen(false)} />
-      )}
-
-      <footer className="shrink-0 border-t border-gray-200 bg-white">
-        <div className="mx-auto max-w-2xl px-4 py-3">
-          <ChatInput
-            onSend={(t) => handleSend(t)}
-            disabled={waiting}
-            photoPreviewUrl={photoUrl}
-            photoStatus={photoStatus}
-            photoError={photoError}
-            onPhotoSelect={(f) => void handlePhotoSelect(f)}
-            onPhotoRemove={() => void handlePhotoRemove()}
-            canSendEmpty={photoUnseen && photoUrl !== null}
-          />
-          {!loggedIn && (
-            <p className="mt-1 px-1 text-xs text-gray-400">
-              로그인은 선택이에요. 로그인하면 대화가 내 계정에 저장돼요.
-            </p>
-          )}
-        </div>
-      </footer>
+                <button
+                  type="button"
+                  onClick={() => void handleNewConversation()}
+                  disabled={waiting || startingNew}
+                  className="rounded-full bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                >
+                  새 대화
+                </button>
+              </div>
+            ) : (
+              <>
+                <ChatInput
+                  onSend={(t) => handleSend(t)}
+                  disabled={waiting}
+                  photoPreviewUrl={photoUrl}
+                  photoStatus={photoStatus}
+                  photoError={photoError}
+                  onPhotoSelect={(f) => void handlePhotoSelect(f)}
+                  onPhotoRemove={() => void handlePhotoRemove()}
+                  canSendEmpty={photoUnseen && photoUrl !== null}
+                />
+                {!loggedIn && (
+                  <p className="mt-1 px-1 text-xs text-gray-400">
+                    로그인은 선택이에요. 로그인하면 대화가 내 계정에 저장돼요.
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+        </footer>
+      </div>
     </div>
   );
 }
