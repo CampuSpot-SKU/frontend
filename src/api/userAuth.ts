@@ -4,6 +4,17 @@
 import { ApiError, apiFetch } from "./client";
 
 const TOKEN_KEY = "campuspot_user_token";
+// 관리자 페이지(src/api/admin.ts)가 읽는 키와 같아야 함 — 관리자 계정으로 로그인하면 여기에 저장하고 /admin으로 넘김.
+// (admin.ts는 1-25 작업 중이라 건드리지 않으려고 키만 맞춤)
+const ADMIN_TOKEN_KEY = "campuspot_admin_token";
+
+function saveAdminToken(token: string): void {
+  try {
+    sessionStorage.setItem(ADMIN_TOKEN_KEY, token);
+  } catch {
+    // 저장 실패 시 관리자 페이지에서 한 번 더 로그인하면 됨
+  }
+}
 
 export interface UserSession {
   token: string;
@@ -14,7 +25,11 @@ interface TokenOut {
   access_token: string;
   token_type: "bearer";
   name: string;
+  role?: "user" | "admin";
 }
+
+/** 로그인 결과 — 학생이면 세션, 관리자 계정이면 관리자 토큰을 저장해 둠(화면이 관리자 페이지로 넘김). */
+export type LoginResult = { kind: "user"; session: UserSession } | { kind: "admin" };
 
 export function getUserToken(): string | null {
   try {
@@ -53,12 +68,17 @@ export async function signup(loginId: string, password: string, name: string): P
   return toSession(out);
 }
 
-export async function login(loginId: string, password: string): Promise<UserSession> {
+/** 로그인 창은 하나 — 관리자 계정이면 backend가 관리자 토큰(role: "admin")을 준다 (10/30). */
+export async function login(loginId: string, password: string): Promise<LoginResult> {
   const out = await apiFetch<TokenOut>("/auth/login", {
     method: "POST",
     body: JSON.stringify({ login_id: loginId, password }),
   });
-  return toSession(out);
+  if (out.role === "admin") {
+    saveAdminToken(out.access_token); // 관리자 페이지(src/pages/admin)가 이 토큰으로 바로 열림
+    return { kind: "admin" };
+  }
+  return { kind: "user", session: toSession(out) };
 }
 
 /** 새로고침 뒤 저장된 토큰으로 이름을 다시 받아온다. 토큰이 없거나 만료됐으면 null(토큰도 지움). */
