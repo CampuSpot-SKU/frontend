@@ -32,9 +32,10 @@ function AuthBar() {
   }, []);
 
   if (user) {
+    // 부모(머리글 오른쪽 묶음)가 줄바꿈되는 flex라 조각(<>)으로 돌려줌 — 휴대폰에선 환영 문구가 한 줄을 통째로 씀
     return (
-      <div className="flex min-w-0 items-center gap-2">
-        <span className="truncate text-sm font-medium text-gray-800" title={`환영합니다 ${user.name}님!`}>
+      <>
+        <span className="basis-full break-all text-right text-sm font-medium text-gray-800 sm:basis-auto">
           환영합니다 {user.name}님!
         </span>
         <button
@@ -47,7 +48,7 @@ function AuthBar() {
         >
           로그아웃
         </button>
-      </div>
+      </>
     );
   }
 
@@ -57,14 +58,14 @@ function AuthBar() {
         <button
           type="button"
           onClick={() => setMode("login")}
-          className="rounded-full px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100"
+          className="rounded-full px-2.5 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 sm:px-3"
         >
           로그인
         </button>
         <button
           type="button"
           onClick={() => setMode("signup")}
-          className="rounded-full bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
+          className="rounded-full bg-blue-600 px-2.5 py-1.5 text-sm font-medium text-white hover:bg-blue-700 sm:px-3"
         >
           회원가입
         </button>
