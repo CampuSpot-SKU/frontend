@@ -1,4 +1,4 @@
-// 관리자 통계 API 호출 (작업 1-16 화면 — status.md 4장 10/5 규민 제안, 명세서 4-2 통계).
+// 관리자 통계 API 호출 (작업 1-16 화면 — 명세서 4-2 통계).
 // 조회만 한다(데이터를 바꾸지 않음). 오류는 apiFetch가 던지는 ApiError를 그대로 던져 화면이 처리.
 import { apiFetch } from "./client";
 import type { AdminStats } from "../types/stats";
