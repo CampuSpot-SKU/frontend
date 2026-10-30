@@ -4,14 +4,30 @@
 //   접수한 신고는 조회되지 않음 (익명 원칙 — 로그인 없음)
 // - "내 신고" 목록: 이 브라우저에서 접수한 접수번호를 localStorage에 기억해 두고 조회 창에 보여줌
 //   (저장이 막힌 브라우저여도 조회 자체는 번호 입력으로 가능)
+// - [새 대화](1-27)로 session_id가 바뀌어도 예전 신고를 조회할 수 있게, 접수할 때의 session_id를
+//   접수번호와 함께 기억해 두고 조회 때 그 값을 쓴다 (기억이 없으면 지금 session_id)
 import { ApiError, apiFetch, getSessionId } from "./client";
 import type { MyReport } from "../types/report";
 
 const MY_REPORTS_KEY = "campuspot_my_reports";
 const MAX_MY_REPORTS = 10;
+const REPORT_SESSIONS_KEY = "campuspot_report_sessions"; // { "접수번호": "접수한 session_id" }
+
+function getReportSessions(): Record<string, string> {
+  try {
+    const raw = localStorage.getItem(REPORT_SESSIONS_KEY);
+    const map: unknown = raw ? JSON.parse(raw) : {};
+    return map && typeof map === "object" && !Array.isArray(map)
+      ? (map as Record<string, string>)
+      : {};
+  } catch {
+    return {};
+  }
+}
 
 export async function fetchMyReport(displayNo: number): Promise<MyReport> {
-  const sessionId = getSessionId();
+  const saved = getReportSessions()[String(displayNo)];
+  const sessionId = typeof saved === "string" ? saved : getSessionId();
   if (!sessionId) {
     // 이 브라우저로 챗봇을 한 번도 안 썼으면 본인 확인을 할 수 없음 → 찾을 수 없음과 같게 처리
     throw new ApiError(404, null);
@@ -53,11 +69,34 @@ export function rememberMyReport(displayNo: number): void {
       displayNo,
       ...getMyReportNos().filter((n) => n !== displayNo),
     ];
-    localStorage.setItem(
-      MY_REPORTS_KEY,
-      JSON.stringify(next.slice(0, MAX_MY_REPORTS)),
-    );
+    const kept = next.slice(0, MAX_MY_REPORTS);
+    localStorage.setItem(MY_REPORTS_KEY, JSON.stringify(kept));
+    // 이 신고를 접수한 세션 기억 — 목록에서 밀려난 번호는 함께 지움
+    const sessionId = getSessionId();
+    const prev = getReportSessions();
+    const sessions: Record<string, string> = {};
+    for (const n of kept) {
+      const sid = n === displayNo ? sessionId : prev[String(n)];
+      if (sid) sessions[String(n)] = sid;
+    }
+    localStorage.setItem(REPORT_SESSIONS_KEY, JSON.stringify(sessions));
   } catch {
     // 저장이 막힌 브라우저 — 목록만 안 보일 뿐 조회는 번호 입력으로 가능
+  }
+}
+
+/** [새 대화]로 session_id를 바꾸기 직전에 호출 — 세션 기억이 없는 예전 접수번호(1-27 배포 전 접수)를
+ *  지금 세션으로 기억해 둔다. 그 전엔 브라우저당 세션이 하나였으므로 지금 세션이 곧 접수한 세션. */
+export function pinReportSessions(): void {
+  const sessionId = getSessionId();
+  if (!sessionId) return;
+  try {
+    const sessions = getReportSessions();
+    for (const n of getMyReportNos()) {
+      if (!sessions[String(n)]) sessions[String(n)] = sessionId;
+    }
+    localStorage.setItem(REPORT_SESSIONS_KEY, JSON.stringify(sessions));
+  } catch {
+    // 저장이 막힌 브라우저 — 예전 신고는 번호 조회가 안 될 수 있음
   }
 }

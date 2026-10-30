@@ -7,8 +7,13 @@
 //   → 문장으로 확인 → 접수. 접수 폼·고정 버튼 없이 말풍선만 오가고, backend가 주는 추천 답변(choices)은
 //   마지막 말풍선 아래 칩으로 보여준다. 칩을 누르는 건 그 글자를 직접 입력해 보내는 것과 같고,
 //   칩에 없는 답은 입력창에 자유롭게 쓰면 된다.
+//
+// 새 대화·계정 연결 (1-27): 머리글 [새 대화]로 대화방(session_id)을 나눈다. 로그인한 학생이면 로그인 직후·
+// 새로고침 뒤 로그인 복원·새 대화 직후·답변을 받은 뒤 지금 세션을 계정에 연결(claim) → [이전 대화]에서 다시 봄.
 import { useEffect, useRef, useState } from "react";
 import { chatErrorMessage, sendChatMessage } from "../../api/chat";
+import { claimSession, startNewConversation } from "../../api/chatSession";
+import type { UserSession } from "../../api/userAuth";
 import {
   deletePhoto,
   photoErrorMessage,
@@ -69,6 +74,10 @@ function ChatPage() {
   const photoFileRef = useRef<File | null>(null); // 채팅 목록에 크게 보여줄 사진 파일
   const [analyzing, setAnalyzing] = useState(false); // 사진을 보낸 메시지의 답을 기다리는 중
   const listRef = useRef<HTMLElement>(null);
+  const [loggedIn, setLoggedIn] = useState(false); // 학생 로그인 상태 (AuthBar가 알려줌)
+  const [startingNew, setStartingNew] = useState(false); // [새 대화] 처리 중
+  // [새 대화] 직후 목록 위에 보여줄 안내 한 줄 (다음 메시지를 보내면 사라짐)
+  const [notice, setNotice] = useState<string | null>(null);
 
   // 새 메시지가 생기면 메시지 목록(main)만 맨 아래로 스크롤.
   // scrollIntoView는 쓰지 않는다 — 부모(문서 전체)까지 같이 스크롤시켜서, 메시지가 쌓일수록 화면 전체가
@@ -136,6 +145,31 @@ function ChatPage() {
     setPhotoStatus("idle");
   };
 
+  const handleUserChange = (u: UserSession | null) => {
+    setLoggedIn(u !== null);
+    if (u) void claimSession(); // 로그인 직후·새로고침 뒤 복원 — 지금 대화를 내 계정에 연결
+  };
+
+  /** [새 대화] — 화면을 인사말 상태로 비우고 새 세션으로 바꾼다 (이전 대화는 서버에 그대로) */
+  const handleNewConversation = async () => {
+    if (waiting || startingNew) return;
+    setStartingNew(true);
+    try {
+      await startNewConversation();
+      setMessages([WELCOME]);
+      setChoices([]);
+      setSlots(null);
+      replacePhotoPreview(null); // 이전 세션의 대기 사진은 서버가 정리함
+      photoFileRef.current = null;
+      setPhotoUnseen(false);
+      setPhotoError(null);
+      setNotice(loggedIn ? null : "로그인하지 않으면 이전 대화를 다시 볼 수 없어요.");
+    } catch (err) {
+      setNotice(chatErrorMessage(err)); // 새 세션을 못 만들었으면 지금 대화를 그대로 이어감
+    }
+    setStartingNew(false);
+  };
+
   const handleSend = async (typed: string) => {
     // 방금 올린 사진이 있으면 이 메시지와 함께 보내 AI가 보게 함 (글이 없으면 사진만)
     const withPhoto = photoUnseen && photoFileRef.current !== null;
@@ -152,6 +186,7 @@ function ChatPage() {
           : undefined,
     };
     setMessages((prev) => [...prev, userMsg]);
+    setNotice(null);
     setChoices([]);
     setWaiting(true);
     setAnalyzing(withPhoto);
@@ -183,6 +218,8 @@ function ChatPage() {
       );
       setChoices(result.choices ?? []);
       setSlots(result.slots ?? null);
+      // 첫 메시지에서 세션이 새로 만들어졌을 수 있음 → 로그인 상태면 연결 (이미 연결한 세션이면 호출 안 함)
+      void claimSession();
       // 접수가 완료되면 조회 창의 "이 브라우저에서 접수한 신고" 목록에 추가 (1-12)
       if (result.reportNo !== undefined) {
         rememberMyReport(result.reportNo);
@@ -213,7 +250,17 @@ function ChatPage() {
           </div>
           {/* 좁은 화면(휴대폰)에선 제목 아래 한 줄을 통째로 써서 "환영합니다 OOO님!"이 잘리지 않게 (1-24) */}
           <div className="flex w-full min-w-0 flex-wrap items-center justify-end gap-x-2 gap-y-1 sm:w-auto">
-            <AuthBar />
+            <AuthBar onUserChange={handleUserChange} />
+            {messages.length > 1 && (
+              <button
+                type="button"
+                onClick={() => void handleNewConversation()}
+                disabled={waiting || startingNew}
+                className="shrink-0 rounded-full border border-gray-300 bg-white px-2.5 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50 sm:px-3"
+              >
+                새 대화
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setStatusOpen(true)}
@@ -231,6 +278,11 @@ function ChatPage() {
         className="relative flex-1 overflow-y-auto overscroll-contain"
       >
         <div className="mx-auto flex max-w-2xl flex-col gap-3 px-4 py-4">
+          {notice && (
+            <p className="text-center text-xs text-gray-500" role="status">
+              {notice}
+            </p>
+          )}
           {messages.map((m) => (
             <MessageBubble key={m.id} message={m} />
           ))}
@@ -287,6 +339,11 @@ function ChatPage() {
             onPhotoRemove={() => void handlePhotoRemove()}
             canSendEmpty={photoUnseen && photoUrl !== null}
           />
+          {!loggedIn && (
+            <p className="mt-1 px-1 text-xs text-gray-400">
+              로그인은 선택이에요. 로그인하면 대화가 내 계정에 저장돼요.
+            </p>
+          )}
         </div>
       </footer>
     </div>

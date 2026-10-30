@@ -11,21 +11,37 @@ import type { UserSession } from "../api/userAuth";
 
 type Mode = "login" | "signup";
 
+interface Props {
+  /** 로그인 상태가 바뀔 때(새로고침 뒤 복원·로그인·가입·로그아웃) — 챗봇 화면이 대화를 계정에 연결(claim)하는 데 씀 (1-27) */
+  onUserChange?: (user: UserSession | null) => void;
+}
+
 /**
  * 챗봇 머리글의 로그인 영역 (작업 1-24).
  * - 로그인 전: [로그인] [회원가입] 버튼 → 누르면 입력 창
  * - 로그인 후: 버튼 대신 "환영합니다 OOO님!" + [로그아웃]
  * 로그인은 선택 사항이라 챗봇·신고 흐름은 이 상태와 상관없이 그대로 동작한다.
  * 로그인 창은 하나 — 관리자 계정으로 로그인하면 관리자 페이지(/admin)로 넘어간다 (10/30).
+ * 로그인한 동안의 대화는 계정에 저장된다(1-27) — 로그인 창에 고지.
  */
-function AuthBar() {
-  const [user, setUser] = useState<UserSession | null>(null);
+function AuthBar({ onUserChange }: Props) {
+  const [user, setUserState] = useState<UserSession | null>(null);
   const [mode, setMode] = useState<Mode | null>(null);
+  const onUserChangeRef = useRef(onUserChange);
+  onUserChangeRef.current = onUserChange;
+
+  const setUser = (s: UserSession | null) => {
+    setUserState(s);
+    onUserChangeRef.current?.(s);
+  };
 
   useEffect(() => {
     let alive = true;
     void restoreSession().then((s) => {
-      if (alive) setUser(s);
+      if (alive) {
+        setUserState(s);
+        onUserChangeRef.current?.(s);
+      }
     });
     return () => {
       alive = false;
@@ -219,11 +235,12 @@ function AuthDialog({ mode, onSwitch, onClose, onDone }: DialogProps) {
                   maxLength={20}
                 />
               </label>
-              <p className="text-xs text-gray-500">
-                학번·전화번호는 받지 않아요. 로그인하지 않아도 신고와 문의는 그대로 쓸 수 있고, 신고는 계정과 연결되지 않아요.
-              </p>
+              <p className="text-xs text-gray-500">학번·전화번호는 받지 않아요.</p>
             </>
           )}
+          <p className="text-xs text-gray-500">
+            로그인하면 그동안의 대화가 내 계정에 저장돼 나중에 다시 볼 수 있어요. 로그인하지 않아도 신고와 문의는 그대로 쓸 수 있어요.
+          </p>
           {error && (
             <p className="text-sm text-red-600" role="alert">
               {error}
