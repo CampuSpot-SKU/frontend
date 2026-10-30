@@ -1,3 +1,4 @@
+import { PHOTO_ONLY_TEXT } from "../types/chat";
 import type { ChatMessage, InquirySource } from "../types/chat";
 
 interface Props {
@@ -48,6 +49,8 @@ function SourceChips({ sources }: { sources: InquirySource[] }) {
 function MessageBubble({ message }: Props) {
   const isUser = message.role === "user";
   const hasSources = !isUser && message.sources && message.sources.length > 0;
+  // 사진만 보낸 메시지는 자리표시 문구를 숨기고 사진만 보여준다
+  const showText = !(message.imageUrl && message.content === PHOTO_ONLY_TEXT);
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
       <div
@@ -57,7 +60,16 @@ function MessageBubble({ message }: Props) {
             : "rounded-bl-sm border border-gray-200 bg-white text-gray-900"
         }`}
       >
-        <div className="whitespace-pre-wrap">{message.content}</div>
+        {message.imageUrl && (
+          <img
+            src={message.imageUrl}
+            alt="내가 보낸 사진"
+            className={`max-h-80 w-full rounded-xl object-cover ${showText ? "mb-2" : "my-1"}`}
+          />
+        )}
+        {showText && (
+          <div className="whitespace-pre-wrap">{message.content}</div>
+        )}
         {hasSources && <SourceChips sources={message.sources ?? []} />}
         {!isUser && message.noSources && (
           <p className="mt-2 border-t border-gray-100 pt-2 text-xs text-gray-500">

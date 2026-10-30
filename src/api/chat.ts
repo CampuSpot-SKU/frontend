@@ -36,6 +36,8 @@ export interface SendOptions {
   onDelta?: OnDelta;
   action?: ChatAction;
   draft?: ReportDraft;
+  /** 방금 올린 (AI가 아직 보지 않은) 사진을 이 메시지와 함께 분석 */
+  withPhoto?: boolean;
 }
 
 /**
@@ -45,9 +47,14 @@ export interface SendOptions {
  */
 export async function sendChatMessage(
   content: string,
-  { onDelta, action, draft }: SendOptions = {},
+  { onDelta, action, draft, withPhoto }: SendOptions = {},
 ): Promise<ChatResult> {
-  const body: MessageIn = { content, action, draft };
+  const body: MessageIn = {
+    content,
+    action,
+    draft,
+    with_photo: withPhoto ? true : undefined,
+  };
   let sessionId = getSessionId() ?? (await createSession());
   let res = await postMessage(sessionId, body);
   if (res.status === 404) {

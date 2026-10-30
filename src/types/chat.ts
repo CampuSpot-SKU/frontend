@@ -9,7 +9,12 @@ export interface ChatMessage {
   sources?: InquirySource[];
   /** true면 근거가 하나도 없는 문의 답변 — "학교 공식 확인이 필요해요" 안내를 표시 */
   noSources?: boolean;
+  /** 사용자가 이 메시지와 함께 보낸 사진 (채팅 목록에 크게 표시). 이 브라우저의 미리보기 주소 */
+  imageUrl?: string;
 }
+
+/** 글 없이 사진만 보낼 때 backend로 보내는 문구 (backend report_agent.PHOTO_ONLY_TEXT와 같아야 함). 말풍선에는 숨김 */
+export const PHOTO_ONLY_TEXT = "(사진을 보냈어요)";
 
 // ── backend 요청·응답 형식 (명세서 5-1 "사용자용 — 챗봇", backend app/schemas/chat.py와 같음) ──
 // 필드명이 바뀌면 명세서 → backend → 이 파일 순서로 같이 바꿔야 함.
@@ -36,6 +41,8 @@ export interface MessageIn {
   content: string;
   action?: ChatAction;
   draft?: ReportDraft;
+  /** 방금 올린 사진이 이 메시지에 딸려 있음 — AI가 사진을 직접 보고 답함 */
+  with_photo?: boolean;
 }
 
 /**

@@ -12,6 +12,8 @@ interface Props {
   photoError: string | null;
   onPhotoSelect: (file: File) => void;
   onPhotoRemove: () => void;
+  /** true면 글 없이도 전송 가능 — 방금 올린 사진을 AI에게 보여주는 경우 */
+  canSendEmpty?: boolean;
 }
 
 /** 하단 입력창 + 📎 사진 첨부 + 전송 버튼. Enter로도 전송됨. */
@@ -23,13 +25,14 @@ function ChatInput({
   photoError,
   onPhotoSelect,
   onPhotoRemove,
+  canSendEmpty = false,
 }: Props) {
   const [text, setText] = useState("");
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     const trimmed = text.trim();
-    if (!trimmed || disabled) return;
+    if ((!trimmed && !canSendEmpty) || disabled) return;
     onSend(trimmed);
     setText("");
   };
@@ -56,14 +59,18 @@ function ChatInput({
           type="text"
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="불편한 점이나 궁금한 점을 입력하세요"
+          placeholder={
+            canSendEmpty
+              ? "사진만 보내도 돼요. 설명을 덧붙여도 좋아요"
+              : "불편한 점이나 궁금한 점을 입력하세요"
+          }
           maxLength={1000}
           aria-label="메시지 입력"
           className="min-w-0 flex-1 rounded-full border border-gray-300 bg-white px-4 py-2 text-base outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
         />
         <button
           type="submit"
-          disabled={disabled || !text.trim()}
+          disabled={disabled || (!text.trim() && !canSendEmpty)}
           className="shrink-0 rounded-full bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300"
         >
           전송

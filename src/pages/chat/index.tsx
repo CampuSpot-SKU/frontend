@@ -25,6 +25,7 @@ import MessageBubble from "../../components/MessageBubble";
 import TypingIndicator from "../../components/TypingIndicator";
 import ReportStatusDialog from "../../components/report/ReportStatusDialog";
 import SlotsCorner from "../../components/report/SlotsCorner";
+import { PHOTO_ONLY_TEXT } from "../../types/chat";
 import type { ChatMessage, SlotsFilled } from "../../types/chat";
 
 const WELCOME: ChatMessage = {
@@ -62,6 +63,11 @@ function ChatPage() {
   const [photoStatus, setPhotoStatus] = useState<PhotoStatus>("idle");
   const [photoError, setPhotoError] = useState<string | null>(null);
   const photoUrlRef = useRef<string | null>(null); // 정리(revoke)용 최신 값
+  // 방금 올려서 AI가 아직 보지 않은 사진 — 다음 메시지(글이 없어도)와 함께 보내면 AI가 사진을 보고 답한다.
+  // 이미 한 번 보낸 사진은 false (같은 사진을 계속 다시 분석하지 않음)
+  const [photoUnseen, setPhotoUnseen] = useState(false);
+  const photoFileRef = useRef<File | null>(null); // 채팅 목록에 크게 보여줄 사진 파일
+  const [analyzing, setAnalyzing] = useState(false); // 사진을 보낸 메시지의 답을 기다리는 중
   const listRef = useRef<HTMLElement>(null);
 
   // 새 메시지가 생기면 메시지 목록(main)만 맨 아래로 스크롤.
@@ -108,6 +114,8 @@ function ChatPage() {
       setPhotoStatus("uploading");
       await uploadPhoto(prepared);
       replacePhotoPreview(URL.createObjectURL(prepared));
+      photoFileRef.current = prepared;
+      setPhotoUnseen(true);
     } catch (err) {
       // 실패하면 칩은 그대로(교체 실패 시 이전 사진이 서버에 남아 있음) + 안내 한 줄. 채팅은 계속 가능
       setPhotoError(photoErrorMessage(err));
@@ -121,21 +129,33 @@ function ChatPage() {
     try {
       await deletePhoto();
       replacePhotoPreview(null);
+      setPhotoUnseen(false);
     } catch (err) {
       setPhotoError(photoErrorMessage(err)); // 서버에 사진이 남았으니 칩도 그대로 둠
     }
     setPhotoStatus("idle");
   };
 
-  const handleSend = async (text: string) => {
+  const handleSend = async (typed: string) => {
+    // 방금 올린 사진이 있으면 이 메시지와 함께 보내 AI가 보게 함 (글이 없으면 사진만)
+    const withPhoto = photoUnseen && photoFileRef.current !== null;
+    const text = typed || (withPhoto ? PHOTO_ONLY_TEXT : "");
+    if (!text) return;
     const userMsg: ChatMessage = {
       id: crypto.randomUUID(),
       role: "user",
       content: text,
+      // 채팅 목록에 사진을 크게 보여줌 (입력창 칩의 미리보기와 별개 주소 — 칩이 지워져도 남아야 함)
+      imageUrl:
+        withPhoto && photoFileRef.current
+          ? URL.createObjectURL(photoFileRef.current)
+          : undefined,
     };
     setMessages((prev) => [...prev, userMsg]);
     setChoices([]);
     setWaiting(true);
+    setAnalyzing(withPhoto);
+    if (withPhoto) setPhotoUnseen(false);
     // 챗봇 답변 말풍선: 스트리밍 중에는 같은 id의 말풍선 내용을 계속 바꿈
     const replyId = crypto.randomUUID();
     const showReply = (
@@ -148,7 +168,10 @@ function ChatPage() {
           : [...prev, { id: replyId, role: "assistant", content, ...extra }],
       );
     try {
-      const result = await sendChatMessage(text, { onDelta: (t) => showReply(t) });
+      const result = await sendChatMessage(text, {
+        onDelta: (t) => showReply(t),
+        withPhoto,
+      });
       // 행정문의 답변이면 근거 칩 (근거가 비어 있으면 "공식 확인 필요" 안내)
       showReply(
         result.text,
@@ -165,13 +188,17 @@ function ChatPage() {
         rememberMyReport(result.reportNo);
         // 대기 사진은 backend가 이 신고에 붙였으니 칩만 지움 (서버 호출 없음)
         replacePhotoPreview(null);
+        setPhotoUnseen(false);
         setPhotoError(null);
       }
     } catch (err) {
       // 실패하면 오류 문구만 표시 (같은 말을 다시 보내면 됨)
       showReply(chatErrorMessage(err));
+      // 사진이 AI에게 전달되지 않았을 수 있으니 다시 보낼 수 있게 되돌림
+      if (withPhoto) setPhotoUnseen(true);
     }
     setWaiting(false);
+    setAnalyzing(false);
   };
 
   return (
@@ -223,7 +250,7 @@ function ChatPage() {
           )}
           {/* 답변 말풍선이 아직 안 생겼을 때만 (스트리밍이 시작되면 숨김) */}
           {waiting && messages[messages.length - 1]?.role === "user" && (
-            <TypingIndicator />
+            <TypingIndicator label={analyzing ? "사진을 분석 중이에요…" : undefined} />
           )}
           {!waiting && choices.length > 0 && (
             <div className="flex flex-wrap gap-2 pl-1" aria-label="추천 답변">
@@ -258,6 +285,7 @@ function ChatPage() {
             photoError={photoError}
             onPhotoSelect={(f) => void handlePhotoSelect(f)}
             onPhotoRemove={() => void handlePhotoRemove()}
+            canSendEmpty={photoUnseen && photoUrl !== null}
           />
         </div>
       </footer>
