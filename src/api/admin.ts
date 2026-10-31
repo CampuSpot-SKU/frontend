@@ -9,6 +9,7 @@ import type {
   ReportConversation,
   ReportFilters,
   ReportStatus,
+  ReportSummary,
   SimilarReportList,
   TokenOut,
 } from "../types/admin";
@@ -65,6 +66,7 @@ export function buildReportQuery(filters: ReportFilters): string {
   if (filters.priority) params.set("priority", filters.priority);
   if (filters.sla_status) params.set("sla_status", filters.sla_status);
   if (filters.category_id) params.set("category_id", filters.category_id);
+  if (filters.open_only) params.set("open_only", "true");
   params.set("sort", filters.sort);
   params.set("limit", String(REPORT_LIMIT));
   return params.toString();
@@ -79,6 +81,13 @@ export async function fetchReports(
     `/admin/reports?${buildReportQuery(filters)}`,
     { headers: authHeaders(token) },
   );
+}
+
+/** GET /admin/reports/summary — 목록 위 숫자 띠. */
+export async function fetchReportSummary(token: string): Promise<ReportSummary> {
+  return apiFetch<ReportSummary>("/admin/reports/summary", {
+    headers: authHeaders(token),
+  });
 }
 
 /** GET /admin/reports/{id} — 상세보기(상태 이력 포함). */

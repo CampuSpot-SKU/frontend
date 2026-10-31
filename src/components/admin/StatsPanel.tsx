@@ -121,7 +121,7 @@ export default function StatsPanel({
         </div>
         {stats && (
           <span className="text-xs text-gray-500">
-            접수 시각 기준 · {formatDateTime(stats.period.until)} 현재
+            {formatDateTime(stats.period.until)} 현재
           </span>
         )}
       </div>
@@ -148,7 +148,6 @@ export default function StatsPanel({
             <StatTile
               label="평균 처리시간"
               value={formatHours(stats.total.avg_resolution_hours)}
-              note="접수부터 해결까지"
             />
             <StatTile
               label="SLA 준수율"
@@ -181,10 +180,6 @@ export default function StatsPanel({
             <h2 className="text-base font-semibold text-gray-900">
               카테고리별 신고
             </h2>
-            <p className="mt-1 text-sm text-gray-600">
-              막대는 신고 건수예요. 꺼 둔 카테고리도 기간 안에 신고가 있으면
-              보여요.
-            </p>
             <div className="mt-3 overflow-x-auto">
               <table className="w-full min-w-[34rem] text-sm">
                 <thead>
@@ -281,14 +276,6 @@ export default function StatsPanel({
               </table>
             </div>
           </div>
-
-          <p className="text-xs text-gray-500">
-            SLA 준수율 = 마감 안에 해결한 건 ÷ (마감 안에 해결 + 마감을 넘긴 건)
-            × 100. 해결하지 못한 채 마감이 지난 신고도 &lsquo;넘김&rsquo;에
-            들어가요. 아직 마감 전인 처리 중 신고는 계산에서 빠져요. 평균
-            처리시간은 해결·종료된 신고만, 마지막으로 &lsquo;해결&rsquo;이 된
-            시각 기준이에요.
-          </p>
         </div>
       )}
     </section>

@@ -80,7 +80,6 @@ export default function SlaEditor({ token, reloadKey, onUnauthorized }: Props) {
   return (
     <SectionShell
       title="SLA (처리 목표 시간)"
-      description="우선순위별로 접수 후 몇 시간 안에 해결해야 하는지와, 목표 시간의 50%·100%·150%가 지났을 때의 조치 문구예요. 이미 접수된 신고의 마감은 바뀌지 않고, 새 신고부터 적용돼요."
       state={state}
       problem={problem}
       confirmMessage={null}

@@ -1,4 +1,4 @@
-// 탐지 기준 편집 — "몇 시간 안에 같은 곳 신고가 몇 건 이상이면 문제 후보" (명세 5-1 `/admin/config/detection`, 3-3).
+// 탐지 기준 편집 — "몇 시간 안에 같은 곳 신고가 몇 건 이상이면 반복 신고로 묶기" (명세 5-1 `/admin/config/detection`, 3-3).
 // 탐지 배치가 다음 실행 때 이 값을 읽는다.
 import { fetchDetection, saveDetection } from "../../../api/adminConfig";
 import {
@@ -64,7 +64,6 @@ export default function DetectionEditor({
   return (
     <SectionShell
       title="탐지 기준"
-      description="같은 장소·같은 종류의 신고가 짧은 시간에 몰리면 개별 건이 아니라 '문제 후보'로 알려 줘요. 그 기준 값이에요. 탐지 배치가 다음 실행 때 이 값을 읽어요."
       state={state}
       problem={problem}
       confirmMessage={null}
@@ -85,7 +84,7 @@ export default function DetectionEditor({
           value={d.count}
           onChange={(e) => state.setDraft({ ...d, count: e.target.value })}
         />
-        건 이상이면 문제 후보로 표시
+        건 이상이면 반복 신고로 묶기
       </p>
     </SectionShell>
   );

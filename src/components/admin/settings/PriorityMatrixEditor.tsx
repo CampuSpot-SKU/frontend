@@ -57,7 +57,6 @@ export default function PriorityMatrixEditor({
   return (
     <SectionShell
       title="우선순위 매트릭스"
-      description="신고의 영향도와 긴급도로 우선순위(P1이 가장 급함)를 정하는 표예요. 새 신고부터 적용돼요."
       state={state}
       problem={null}
       confirmMessage={null}

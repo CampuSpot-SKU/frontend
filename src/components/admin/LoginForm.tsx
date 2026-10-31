@@ -47,9 +47,6 @@ function LoginForm({ onLoggedIn }: Props) {
     >
       <div>
         <h1 className="text-lg font-bold text-gray-900">CampuSpot 관리자</h1>
-        <p className="text-xs text-gray-500">
-          접수된 신고를 확인하고 처리합니다
-        </p>
       </div>
       <label className="block">
         <span className="text-sm text-gray-700">아이디</span>

@@ -173,11 +173,6 @@ export default function ChatLogsPanel({
           />
           신뢰도 낮은 질문만
         </label>
-        {items && (
-          <span className="text-xs text-gray-500">
-            질문 시각 기준 · 최신순
-          </span>
-        )}
       </div>
 
       {error && <p className="text-sm text-red-600">{error}</p>}

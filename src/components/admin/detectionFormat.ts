@@ -10,6 +10,21 @@ export function clusterLocationText(
   return text || "-";
 }
 
+import type { ClusterStatus } from "../../types/admin";
+
+/** 반복 신고 묶음 상태의 화면 표시 (API 값은 후보·승격·기각 그대로) */
+export const CLUSTER_STATUS_LABEL: Record<ClusterStatus, string> = {
+  후보: "확인 필요",
+  승격: "문제로 등록",
+  기각: "문제 아님",
+};
+
+export const CLUSTER_STATUS_STYLE: Record<ClusterStatus, string> = {
+  후보: "bg-amber-100 text-amber-800",
+  승격: "bg-indigo-100 text-indigo-700",
+  기각: "bg-gray-100 text-gray-600",
+};
+
 export type PredictionLabel = "지남" | "곧" | "여유";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -49,4 +64,13 @@ export function formatDate(iso: string): string {
     month: "numeric",
     day: "numeric",
   });
+}
+
+/** 예상 시점이 오늘 기준 며칠 뒤인지: "오늘 · 3일 뒤 · 2일 지남" */
+export function dayDistanceText(iso: string, now: number = Date.now()): string {
+  const diff = Math.round(
+    (startOfDay(new Date(iso).getTime()) - startOfDay(now)) / DAY_MS,
+  );
+  if (diff === 0) return "오늘";
+  return diff > 0 ? `${diff}일 뒤` : `${-diff}일 지남`;
 }

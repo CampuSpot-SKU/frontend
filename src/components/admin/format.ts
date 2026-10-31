@@ -42,3 +42,38 @@ export function slaRemaining(
         : `${abs}분`;
   return diffMin >= 0 ? `마감까지 ${text}` : `${text} 초과`;
 }
+
+/** "방금 · 12분 전 · 3시간 전 · 2일 전", 일주일이 넘으면 날짜 */
+export function relativeTime(iso: string, now: number = Date.now()): string {
+  const min = Math.round((now - new Date(iso).getTime()) / 60000);
+  if (min < 1) return "방금";
+  if (min < 60) return `${min}분 전`;
+  const hours = Math.floor(min / 60);
+  if (hours < 24) return `${hours}시간 전`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}일 전`;
+  return formatDateTime(iso);
+}
+
+/** "10/28" */
+export function formatDay(iso: string): string {
+  const d = new Date(iso);
+  return `${d.getMonth() + 1}/${d.getDate()}`;
+}
+
+/** "14:05" */
+export function formatClock(ms: number): string {
+  return new Date(ms).toLocaleTimeString("ko-KR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+}
+
+/** "해결" → "해결로", "배정" → "배정으로" (받침 ㄹ·없음은 '로', 그 외 '으로') */
+export function withRo(word: string): string {
+  const code = word.charCodeAt(word.length - 1) - 0xac00;
+  if (code < 0 || code > 11171) return `${word}(으)로`;
+  const batchim = code % 28;
+  return `${word}${batchim === 0 || batchim === 8 ? "로" : "으로"}`;
+}

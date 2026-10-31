@@ -1,4 +1,4 @@
-// 관리자 화면 탭 6개 — 접수 목록 · 문제 후보(후보 건수 배지) · 예방 점검 (작업 1-8·1-11) · 통계 (작업 1-16) · 문의 로그 (작업 1-18) · 설정 (작업 1-17).
+// 관리자 화면 탭 6개 — 접수 목록(SLA 초과 건수 배지) · 반복 신고(확인 필요 건수 배지) · 예방 점검 · 통계 · 문의 로그 · 설정.
 // 라우터 없이 React 상태로만 전환한다.
 
 export type AdminTab =
@@ -6,7 +6,7 @@ export type AdminTab =
 
 const TABS: { value: AdminTab; label: string }[] = [
   { value: "reports", label: "접수 목록" },
-  { value: "clusters", label: "문제 후보" },
+  { value: "clusters", label: "반복 신고" },
   { value: "predictions", label: "예방 점검" },
   { value: "stats", label: "통계" },
   { value: "logs", label: "문의 로그" },
@@ -16,19 +16,29 @@ const TABS: { value: AdminTab; label: string }[] = [
 interface Props {
   tab: AdminTab;
   onChange: (tab: AdminTab) => void;
-  /** 후보 상태인 문제 후보 건수. null이면(불러오기 실패·미배포) 배지를 숨김 */
-  candidateCount: number | null;
+  /** 확인 필요 상태인 반복 신고 건수. null이면(불러오기 실패·미배포) 배지를 숨김 */
+  repeatCount: number | null;
+  /** SLA 초과 신고 건수. null이면 배지를 숨김 */
+  overdueCount: number | null;
 }
 
-export default function AdminTabs({ tab, onChange, candidateCount }: Props) {
+export default function AdminTabs({ tab, onChange, repeatCount, overdueCount }: Props) {
+  const badge = (value: AdminTab): { n: number; tone: string; label: string } | null => {
+    if (value === "reports" && overdueCount)
+      return { n: overdueCount, tone: "bg-red-500", label: `SLA 초과 ${overdueCount}건` };
+    if (value === "clusters" && repeatCount)
+      return { n: repeatCount, tone: "bg-amber-500", label: `확인 필요 ${repeatCount}건` };
+    return null;
+  };
   return (
     <div
       role="tablist"
       aria-label="관리자 메뉴"
-      className="mx-auto flex max-w-6xl gap-1 overflow-x-auto px-4"
+      className="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-4"
     >
       {TABS.map((t) => {
         const selected = t.value === tab;
+        const b = badge(t.value);
         return (
           <button
             key={t.value}
@@ -43,16 +53,14 @@ export default function AdminTabs({ tab, onChange, candidateCount }: Props) {
             }`}
           >
             {t.label}
-            {t.value === "clusters" &&
-              candidateCount !== null &&
-              candidateCount > 0 && (
-                <span
-                  aria-label={`확인할 후보 ${candidateCount}건`}
-                  className="rounded-full bg-red-500 px-1.5 py-0.5 text-xs font-semibold leading-none text-white"
-                >
-                  {candidateCount}
-                </span>
-              )}
+            {b && (
+              <span
+                aria-label={b.label}
+                className={`rounded-full px-1.5 py-0.5 text-xs font-semibold leading-none text-white ${b.tone}`}
+              >
+                {b.n}
+              </span>
+            )}
           </button>
         );
       })}

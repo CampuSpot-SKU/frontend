@@ -83,7 +83,6 @@ export default function CategoriesEditor({
   return (
     <SectionShell
       title="카테고리"
-      description="신고를 분류하는 이름이에요. 새 신고부터 반영돼요. 삭제는 없고, 쓰지 않을 카테고리는 '사용 안 함'으로 꺼 주세요(꺼도 이전 신고는 그대로 보여요)."
       state={state}
       problem={problem}
       confirmMessage={null}
@@ -114,7 +113,7 @@ export default function CategoriesEditor({
               </label>
               {isDefault && (
                 <span className="text-xs text-gray-500">
-                  기본 카테고리라 바꿀 수 없어요
+                  기본
                 </span>
               )}
               {r.id === null && (

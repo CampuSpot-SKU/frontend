@@ -5,7 +5,7 @@ import type { ConfigSectionState } from "./useConfigSection";
 
 interface Props<D> {
   title: string;
-  description: string;
+
   state: ConfigSectionState<D>;
   /** 지금 입력값이 잘못된 이유(있으면 저장 막음). 없으면 null */
   problem: string | null;
@@ -16,7 +16,6 @@ interface Props<D> {
 
 export default function SectionShell<D>({
   title,
-  description,
   state,
   problem,
   confirmMessage,
@@ -46,7 +45,6 @@ export default function SectionShell<D>({
       className="rounded-xl border border-gray-200 bg-white p-4"
     >
       <h2 className="text-base font-semibold text-gray-900">{title}</h2>
-      <p className="mt-1 text-sm text-gray-600">{description}</p>
 
       <div className="mt-4">
         {state.loading && <p className="text-sm text-gray-400">불러오는 중…</p>}

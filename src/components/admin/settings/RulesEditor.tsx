@@ -18,7 +18,6 @@ import type {
 import {
   ALL_BUILDINGS_LABEL,
   deletedRuleNames,
-  ruleSentence,
   rulesProblem,
   type RuleRow,
 } from "./rulesFormat";
@@ -136,7 +135,6 @@ export default function RulesEditor({ token, reloadKey, onUnauthorized }: Props)
   return (
     <SectionShell
       title="조건-액션 규칙"
-      description="새로 접수되는 신고에 적용돼요. 신고가 AI와 매트릭스로 우선순위가 정해진 뒤, 아래 규칙의 카테고리(와 건물)에 맞으면 규칙의 우선순위로 바꾸고 SLA 마감도 그 기준으로 정해요. 규칙이 여러 개 맞으면 건물을 지정한 규칙이 먼저예요. 이미 접수된 신고는 바뀌지 않아요."
       state={state}
       problem={problem}
       confirmMessage={confirmMessage}
@@ -153,7 +151,6 @@ export default function RulesEditor({ token, reloadKey, onUnauthorized }: Props)
       )}
       <ul className="space-y-3">
         {rows.map((r) => {
-          const cat = categories.find((c) => c.id === r.category_id);
           return (
             <li
               key={r.key}
@@ -253,16 +250,6 @@ export default function RulesEditor({ token, reloadKey, onUnauthorized }: Props)
                   </select>
                 </label>
               </div>
-              {cat && (
-                <p className="mt-2 text-xs text-gray-500">
-                  {ruleSentence(
-                    cat.name,
-                    r.building_id === "" ? null : buildingName(r.building_id),
-                    r.resulting_priority,
-                  )}
-                  {!r.is_active && " (지금은 꺼져 있어요)"}
-                </p>
-              )}
             </li>
           );
         })}

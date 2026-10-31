@@ -1,5 +1,5 @@
 // 건물 편집 — 이름·별칭(챗봇 대화에서 다르게 부르는 이름) 수정, 추가, 삭제 (명세 5-1 `/admin/config/buildings`).
-// 신고·문제 후보·예측이 쓰는 건물은 삭제할 수 없고(저장할 때 409로 알려 줌), 이름을 바꾸면
+// 신고·반복 신고·예측이 쓰는 건물은 삭제할 수 없고(저장할 때 409로 알려 줌), 이름을 바꾸면
 // 층·호실 데이터는 건물 이름으로 찾기 때문에 그 건물은 층 검증을 하지 않게 된다 — 저장 전에 한 번 더 묻는다.
 import { useState } from "react";
 import { fetchBuildings, saveBuildings } from "../../../api/adminConfig";
@@ -111,7 +111,6 @@ export default function BuildingsEditor({
   return (
     <SectionShell
       title="건물"
-      description="챗봇이 신고 위치를 알아볼 때 쓰는 건물 목록이에요. 별칭은 학생들이 다르게 부르는 이름이에요(쉼표로 구분). 새 신고부터 반영돼요."
       state={state}
       problem={problem}
       confirmMessage={confirmMessage}
