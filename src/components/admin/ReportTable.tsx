@@ -151,7 +151,11 @@ export default function ReportTable({ rows, selectedId, now, onSelect, onOpenClu
                       {isCollapsed ? "▶" : "▼"}
                     </button>
                     <span className="font-semibold text-indigo-900">같은 건 {members.length}건</span>
-                    <span className="font-medium text-gray-900">{locationText(first)}</span>
+                    <span className="font-medium text-gray-900">
+                      {cluster.whole_building
+                        ? `${first.building?.name ?? ""} 건물 전체`.trim()
+                        : locationText(first)}
+                    </span>
                     <span className="text-gray-600">{first.category.name}</span>
                     <PriorityBadge priority={highestPriority(members)} />
                     {sla && sla !== "온타임" && <SlaBadge status={sla} />}

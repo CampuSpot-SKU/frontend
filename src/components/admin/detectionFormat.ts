@@ -1,6 +1,9 @@
 // 탐지·예측 화면의 표시 규칙 (작업 1-8·1-11) — 순수 함수로 분리해 테스트하기 쉽게 둠.
 import type { NamedRef } from "../../types/admin";
 
+/** ai 탐지가 건물 전체 원인으로 묶은 묶음의 세부위치 값 */
+export const WHOLE_BUILDING = "건물 전체";
+
 /** 건물 + 세부위치. 건물이 없으면 세부위치만, 둘 다 없으면 "-" */
 export function clusterLocationText(
   building: NamedRef | null,

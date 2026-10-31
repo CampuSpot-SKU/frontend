@@ -21,8 +21,9 @@ import {
   CLUSTER_STATUS_LABEL,
   CLUSTER_STATUS_STYLE,
   clusterLocationText,
+  WHOLE_BUILDING,
 } from "./detectionFormat";
-import { formatDay, relativeTime, slaRemaining, withRo } from "./format";
+import { formatDay, locationText, relativeTime, slaRemaining, withRo } from "./format";
 import SlaBadge from "./SlaBadge";
 
 const VIEWS: ClusterStatus[] = ["후보", "승격", "기각"];
@@ -351,6 +352,9 @@ export default function RepeatReportPanel({
                                 <PriorityBadge priority={r.priority} />
                                 <StatusBadge status={r.status} />
                                 <span className="min-w-0 flex-1 basis-40 truncate text-sm text-gray-700">
+                                  {c.detail === WHOLE_BUILDING && (
+                                    <span className="text-gray-500">{locationText(r)} </span>
+                                  )}
                                   {r.description}
                                 </span>
                                 <SlaBadge status={r.sla_status} />

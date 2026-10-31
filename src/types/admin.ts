@@ -21,6 +21,7 @@ export interface ReportClusterRef {
   id: string;
   report_count: number; // 그 묶음에 묶인 신고 전체 수
   status: ClusterStatus;
+  whole_building?: boolean; // 호실이 달라도 건물 전체 원인으로 묶인 건
 }
 
 /** GET /admin/reports 목록 한 줄 */

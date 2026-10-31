@@ -290,6 +290,7 @@ export default function ReportDetailPanel({
                   <div className="mb-2 flex items-center gap-2">
                     <h3 className="font-semibold text-indigo-900">
                       같은 건 {clusterReports.length}건
+                      {detail.cluster.whole_building && " · 건물 전체"}
                     </h3>
                     <span
                       className={`rounded-full px-2 py-0.5 text-xs font-medium ${CLUSTER_STATUS_STYLE[detail.cluster.status]}`}
