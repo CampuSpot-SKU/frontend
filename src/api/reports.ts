@@ -6,8 +6,10 @@
 //   (저장이 막힌 브라우저여도 조회 자체는 번호 입력으로 가능)
 // - [새 대화](1-27)로 session_id가 바뀌어도 예전 신고를 조회할 수 있게, 접수할 때의 session_id를
 //   접수번호와 함께 기억해 두고 조회 때 그 값을 쓴다 (기억이 없으면 지금 session_id)
+// - 로그인한 학생은 계정에 연결된 대화에서 접수한 신고를 다른 기기에서도 조회 (학생 토큰, 11/1)
 import { ApiError, apiFetch, getSessionId } from "./client";
-import type { MyReport } from "../types/report";
+import { getUserToken } from "./userAuth";
+import type { MyReport, MyReportSummary } from "../types/report";
 
 const MY_REPORTS_KEY = "campuspot_my_reports";
 const MAX_MY_REPORTS = 10;
@@ -28,20 +30,33 @@ function getReportSessions(): Record<string, string> {
 export async function fetchMyReport(displayNo: number): Promise<MyReport> {
   const saved = getReportSessions()[String(displayNo)];
   const sessionId = typeof saved === "string" ? saved : getSessionId();
-  if (!sessionId) {
-    // 이 브라우저로 챗봇을 한 번도 안 썼으면 본인 확인을 할 수 없음 → 찾을 수 없음과 같게 처리
+  const token = getUserToken();
+  if (!sessionId && !token) {
+    // 이 브라우저로 챗봇을 한 번도 안 썼고 로그인도 안 했으면 본인 확인을 할 수 없음 → 찾을 수 없음과 같게 처리
     throw new ApiError(404, null);
   }
-  return apiFetch<MyReport>(
-    `/reports/${displayNo}?session_id=${encodeURIComponent(sessionId)}`,
-  );
+  // 세션 또는 로그인 계정 중 하나라도 맞으면 backend가 돌려줌
+  const query = sessionId ? `?session_id=${encodeURIComponent(sessionId)}` : "";
+  return apiFetch<MyReport>(`/reports/${displayNo}${query}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+}
+
+/** 로그인한 학생 계정으로 접수한 신고 목록 (로그인 안 했으면 빈 목록) */
+export async function fetchMyReportList(): Promise<MyReportSummary[]> {
+  const token = getUserToken();
+  if (!token) return [];
+  const res = await apiFetch<{ reports: MyReportSummary[] }>("/reports/mine", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return res.reports;
 }
 
 /** 조회 실패 원인별 안내 문구 */
 export function reportErrorMessage(err: unknown): string {
   if (err instanceof ApiError) {
     if (err.status === 404 || err.status === 403)
-      return "해당 접수번호를 찾을 수 없어요. 이 브라우저에서 접수한 신고만 조회할 수 있어요.";
+      return "해당 접수번호를 찾을 수 없어요. 이 브라우저에서 접수했거나 로그인한 계정으로 접수한 신고만 조회할 수 있어요.";
     if (err.status === 422) return "접수번호를 숫자로 입력해 주세요.";
     if (err.status === 429)
       return "요청이 너무 많아요. 잠시 후 다시 시도해 주세요.";

@@ -31,5 +31,19 @@ export interface MyReport {
   priority: Priority;
   status: ReportStatus;
   created_at: string; // ISO 8601
+  location?: string | null;
+  description?: string | null;
+  assigned_dept?: string | null;
+  sla_deadline?: string | null; // ISO 8601
   status_history: StatusHistoryItem[];
+}
+
+/** GET /reports/mine (로그인한 학생 계정의 신고 목록) 한 줄 */
+export interface MyReportSummary {
+  display_no: number;
+  category: { id: string; name: string } | string;
+  priority: Priority;
+  status: ReportStatus;
+  created_at: string;
+  location?: string | null;
 }

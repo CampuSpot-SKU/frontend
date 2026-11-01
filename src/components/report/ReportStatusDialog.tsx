@@ -2,11 +2,17 @@ import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import {
   fetchMyReport,
+  fetchMyReportList,
   getMyReportNos,
   reportErrorMessage,
 } from "../../api/reports";
 import { REPORT_STATUS_ORDER } from "../../types/report";
-import type { MyReport } from "../../types/report";
+import type {
+  MyReport,
+  MyReportSummary,
+  ReportStatus,
+  StatusHistoryItem,
+} from "../../types/report";
 import { PriorityBadge, StatusBadge } from "./StatusBadge";
 
 interface Props {
@@ -36,7 +42,25 @@ function ReportStatusDialog({ onClose }: Props) {
   const [loading, setLoading] = useState(false);
   const [report, setReport] = useState<MyReport | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [accountReports, setAccountReports] = useState<MyReportSummary[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // 로그인했으면 계정으로 접수한 신고 목록을 불러옴 (다른 기기에서 접수한 것 포함)
+  useEffect(() => {
+    let alive = true;
+    fetchMyReportList()
+      .then((list) => {
+        if (!alive) return;
+        setAccountReports(list);
+        if (list[0]) setInput((cur) => cur || String(list[0].display_no));
+      })
+      .catch(() => {
+        // 목록을 못 불러와도 번호 입력 조회는 그대로 가능
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   // 부모가 다시 그려질 때마다 onClose가 새 함수여도 아래 효과가 다시 돌지 않게 ref로 보관
   const onCloseRef = useRef(onClose);
@@ -148,6 +172,34 @@ function ReportStatusDialog({ onClose }: Props) {
           </div>
         )}
 
+        {accountReports.length > 0 && (
+          <div className="flex flex-col gap-2" aria-label="내 계정으로 접수한 신고">
+            <span className="text-xs text-gray-500">
+              내 계정으로 접수한 신고
+            </span>
+            <ul className="flex max-h-40 flex-col gap-1 overflow-y-auto">
+              {accountReports.map((r) => (
+                <li key={r.display_no}>
+                  <button
+                    type="button"
+                    disabled={loading}
+                    onClick={() => lookup(r.display_no)}
+                    className="flex w-full items-center gap-2 rounded-lg border border-gray-200 px-3 py-1.5 text-left text-sm hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    <span className="font-medium text-gray-900">
+                      {r.display_no}번
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-gray-600">
+                      {r.location ?? ""}
+                    </span>
+                    <StatusBadge status={r.status} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {loading && <p className="text-sm text-gray-500">조회하는 중…</p>}
         {error && (
           <p role="alert" className="text-sm text-red-600">
@@ -159,7 +211,8 @@ function ReportStatusDialog({ onClose }: Props) {
         {!report && !error && !loading && (
           <p className="text-xs leading-relaxed text-gray-500">
             챗봇에서 신고가 접수되면 접수번호를 알려드려요. 이 브라우저에서
-            접수한 신고만 조회할 수 있어요.
+            접수한 신고를 조회할 수 있고, 로그인한 상태로 접수한 신고는 다른
+            기기에서도 로그인하면 볼 수 있어요.
           </p>
         )}
       </div>
@@ -190,6 +243,34 @@ function ReportResult({ report }: { report: MyReport }) {
         <dd className="text-gray-900">{category}</dd>
         <dt className="text-gray-500">접수</dt>
         <dd className="text-gray-900">{formatDate(report.created_at)}</dd>
+        {report.location && (
+          <>
+            <dt className="text-gray-500">위치</dt>
+            <dd className="text-gray-900">{report.location}</dd>
+          </>
+        )}
+        {report.description && (
+          <>
+            <dt className="text-gray-500">내용</dt>
+            <dd className="text-gray-900">{report.description}</dd>
+          </>
+        )}
+        {report.assigned_dept && (
+          <>
+            <dt className="text-gray-500">담당</dt>
+            <dd className="text-gray-900">{report.assigned_dept}</dd>
+          </>
+        )}
+        {report.sla_deadline &&
+          report.status !== "해결" &&
+          report.status !== "종료" && (
+            <>
+              <dt className="text-gray-500">처리 목표</dt>
+              <dd className="text-gray-900">
+                {formatDate(report.sla_deadline)}까지
+              </dd>
+            </>
+          )}
       </dl>
 
       {/* 처리 단계: 접수 → 배정 → 처리중 → 해결 → 종료 */}
@@ -232,7 +313,8 @@ function ReportResult({ report }: { report: MyReport }) {
                 <span className="text-gray-500">
                   {formatDate(h.changed_at)}
                 </span>{" "}
-                <StatusBadge status={h.to_status} />
+                <StatusBadge status={h.to_status} />{" "}
+                <span className="text-gray-700">{historyNote(h)}</span>
                 {h.memo && <p className="mt-0.5 text-gray-700">{h.memo}</p>}
               </li>
             ))}
@@ -241,6 +323,21 @@ function ReportResult({ report }: { report: MyReport }) {
       )}
     </section>
   );
+}
+
+const STATUS_NOTE: Record<ReportStatus, string> = {
+  접수: "신고가 접수됐어요",
+  배정: "담당 부서가 정해졌어요",
+  처리중: "담당자가 처리하고 있어요",
+  해결: "처리가 끝났어요",
+  종료: "확인을 마치고 종료됐어요",
+};
+
+/** 이력 한 줄 설명 — 같은 상태로 남은 기록은 처리 기한이 지나 우선순위가 자동으로 올라간 경우 */
+function historyNote(h: StatusHistoryItem): string {
+  if (h.from_status && h.from_status === h.to_status)
+    return "처리 기한이 지나 우선순위가 올라갔어요";
+  return STATUS_NOTE[h.to_status];
 }
 
 export default ReportStatusDialog;
