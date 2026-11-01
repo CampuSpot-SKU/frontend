@@ -473,8 +473,6 @@ function ChatPage() {
           </div>
         </main>
 
-        <SlotsCorner slots={slots} />
-
         {statusOpen && (
           <ReportStatusDialog onClose={() => setStatusOpen(false)} />
         )}
@@ -501,6 +499,9 @@ function ChatPage() {
               </div>
             ) : (
               <>
+                {/* 신고 중일 때만 입력창 바로 위에 — 화면에 고정하면 휴대폰에서 전송 버튼을 가려서 입력 영역 안에 둠.
+                    이전 대화를 읽는 중(viewing)에는 지금 대화의 접수 내용이라 보이지 않음 */}
+                <SlotsCorner slots={slots} />
                 <ChatInput
                   onSend={(t) => handleSend(t)}
                   disabled={waiting}

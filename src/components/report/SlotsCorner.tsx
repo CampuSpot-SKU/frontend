@@ -9,7 +9,8 @@ interface Props {
 /**
  * 화면 구석에 작게 붙는 "챗봇이 이해한 접수 내용" 보기 (명세 4-1 대화형 개편).
  * 채팅은 대화로만 진행하고, 원하면 이 칸을 열어서 위치·상황이 실제로 어떻게 입력됐는지 실시간으로 확인.
- * 위치·모양은 임시 — 디자인 담당이 자리를 옮기거나 다듬어도 됨 (props는 slots 하나뿐).
+ * 자리: 챗봇 화면 입력창 바로 위(입력 영역 안). 예전엔 화면 오른쪽 아래에 고정했는데 휴대폰에서 전송 버튼을
+ * 가려서(11/1 모바일 점검) 입력 영역 흐름 안으로 옮기고, 펼친 내용은 버튼 위로 뜨게 했다.
  */
 function SlotsCorner({ slots }: Props) {
   const [open, setOpen] = useState(false);
@@ -25,9 +26,9 @@ function SlotsCorner({ slots }: Props) {
   ];
 
   return (
-    <div className="fixed bottom-20 right-3 z-20 w-56 text-xs sm:bottom-24">
+    <div className="relative mb-2 flex justify-end text-xs">
       {open && (
-        <div className="mb-1 rounded-lg border border-gray-200 bg-white p-3 shadow-lg">
+        <div className="absolute bottom-full right-0 z-20 mb-1 w-56 rounded-lg border border-gray-200 bg-white p-3 shadow-lg">
           <p className="mb-2 font-semibold text-gray-700">챗봇이 이해한 내용</p>
           <dl className="space-y-1">
             {rows.map(([label, value]) => (
@@ -44,7 +45,7 @@ function SlotsCorner({ slots }: Props) {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="ml-auto block rounded-full border border-gray-300 bg-white px-3 py-1.5 text-gray-700 shadow hover:bg-gray-100"
+        className="rounded-full border border-gray-300 bg-white px-3 py-1 text-gray-700 hover:bg-gray-100"
       >
         {open ? "접수 내용 닫기" : "접수 내용 보기"}
       </button>
